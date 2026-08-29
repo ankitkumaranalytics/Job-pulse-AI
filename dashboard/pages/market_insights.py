@@ -14,34 +14,13 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from dashboard.components.charts import horizontal_bar, line_chart, donut_chart
+from dashboard.components.filters import (
+    ALL,
+    filter_dataframe,
+    select_filter,
+    show_no_data,
+)
 from src import analytics
-
-
-def _apply_filters(df, role, location, industry, exp_cat, date_range):
-    """Apply dashboard filters to the DataFrame."""
-    filtered = df.copy()
-
-    if role and role != "All":
-        filtered = filtered[filtered["standardized_job_title"] == role]
-
-    if location and location != "All":
-        if "city" in filtered.columns:
-            filtered = filtered[filtered["city"] == location]
-
-    if industry and industry != "All":
-        if "industry" in filtered.columns:
-            filtered = filtered[filtered["industry"] == industry]
-
-    if exp_cat and exp_cat != "All":
-        if "experience_category" in filtered.columns:
-            filtered = filtered[filtered["experience_category"] == exp_cat]
-
-    if date_range and "posting_date" in filtered.columns:
-        start, end = date_range
-        filtered["posting_date"] = pd.to_datetime(filtered["posting_date"], errors="coerce")
-        filtered = filtered[filtered["posting_date"].between(start, end)]
-
-    return filtered
 
 
 def render(df: pd.DataFrame) -> None:
@@ -53,49 +32,61 @@ def render(df: pd.DataFrame) -> None:
         unsafe_allow_html=True,
     )
 
+    if df is None or len(df) == 0:
+        show_no_data("the loaded dataset")
+        return
+
     # ---------------- Filters ----------------
     st.markdown("### Filters")
 
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
-        roles = ["All"] + sorted(df["standardized_job_title"].unique().tolist())
-        role = st.selectbox("Job Role", roles)
+        role = select_filter(df, "standardized_job_title", "Job Role", key="mi_role")
 
     with col2:
-        locs = ["All"] + sorted(df["city"].unique().tolist()) if "city" in df.columns else ["All"]
-        location = st.selectbox("Location", locs)
+        location = select_filter(df, "city", "Location", key="mi_location")
 
     with col3:
-        industries = ["All"] + sorted(df["industry"].unique().tolist()) if "industry" in df.columns else ["All"]
-        industry = st.selectbox("Industry", industries)
+        industry = select_filter(df, "industry", "Industry", key="mi_industry")
 
     with col4:
-        exps = ["All"] + sorted(df["experience_category"].unique().tolist()) if "experience_category" in df.columns else ["All"]
-        exp_cat = st.selectbox("Experience", exps)
+        experience = select_filter(df, "experience_category", "Experience", key="mi_exp")
 
-    date_col = None
-    for c in df.columns:
-        if str(c).lower() in ("posting_date", "date", "posted_date"):
-            date_col = c
-            break
-
-    if date_col:
-        dates = pd.to_datetime(df[date_col], errors="coerce").dropna()
+    date_range = None
+    if "posting_date" in df.columns:
+        dates = pd.to_datetime(df["posting_date"], errors="coerce").dropna()
         if len(dates) > 0:
             min_d = dates.min().date()
             max_d = dates.max().date()
-            date_range = st.date_input(
-                "Date Range", value=(min_d, max_d), min_value=min_d, max_value=max_d,
+            # date_input returns a tuple only when a 2-value range is given;
+            # a single date (e.g. min == max) is returned unboxed - handle both.
+            picked = st.date_input(
+                "Date Range",
+                value=(min_d, max_d) if min_d < max_d else min_d,
+                min_value=min_d,
+                max_value=max_d,
             )
-        else:
-            date_range = None
-    else:
-        date_range = None
+            if isinstance(picked, (tuple, list)) and len(picked) == 2:
+                date_range = (picked[0], picked[1])
+            else:
+                date_range = (min_d, max_d) if not hasattr(picked, "year") else (picked, picked)
 
-    filtered = _apply_filters(df, role, location, industry, exp_cat, date_range)
+    filtered = filter_dataframe(
+        df,
+        role=role,
+        location=location,
+        industry=industry,
+        experience=experience,
+        date_range=date_range,
+    )
 
     st.divider()
+
+    # ---------------- Empty-state guard (Phase 8) ----------------
+    if len(filtered) == 0:
+        show_no_data()
+        return
 
     # ---------------- Summary metrics ----------------
     col1, col2, col3, col4 = st.columns(4)

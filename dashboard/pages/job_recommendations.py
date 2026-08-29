@@ -15,6 +15,21 @@ if str(ROOT) not in sys.path:
 
 from models.job_recommender import JobRecommender
 from src.skill_extractor import get_all_skills
+from src.utils import unique_options
+
+
+@st.cache_resource(show_spinner="Fitting TF-IDF recommendation model…")
+def get_recommender(df: pd.DataFrame) -> JobRecommender:
+    """
+    Build and fit the job recommender (Phase 15 performance fix).
+
+    ``st.cache_resource`` keeps a single fitted TF-IDF model alive across
+    reruns and users, instead of refitting on every widget interaction.
+    The cache key is the dataframe itself, so a new dataset invalidates it.
+    """
+    recommender = JobRecommender(df)
+    recommender.fit()
+    return recommender
 
 
 def render(df: pd.DataFrame) -> None:
@@ -38,7 +53,7 @@ def render(df: pd.DataFrame) -> None:
     with col1:
         target_role = st.selectbox(
             "🎯 Target Role",
-            ["Any"] + sorted(df["standardized_job_title"].unique().tolist()),
+            ["Any"] + unique_options(df, "standardized_job_title"),
         )
         st.selectbox(
             "📅 Experience Level",
@@ -47,7 +62,7 @@ def render(df: pd.DataFrame) -> None:
         )
 
     with col2:
-        locs = ["Any"] + sorted(df["city"].unique().tolist()) if "city" in df.columns else ["Any"]
+        locs = ["Any"] + unique_options(df, "city")
         preferred_location = st.selectbox("📍 Preferred Location", locs)
         user_skills = st.multiselect(
             "🧠 Your Skills",
@@ -70,8 +85,8 @@ def render(df: pd.DataFrame) -> None:
     st.markdown("### 🎯 Recommended Jobs")
 
     with st.spinner("Computing recommendations using TF-IDF + cosine similarity..."):
-        recommender = JobRecommender(df)
         try:
+            recommender = get_recommender(df)  # cached: fits only once
             results = recommender.recommend(
                 user_skills=user_skills,
                 preferred_location=preferred_location if preferred_location != "Any" else "",

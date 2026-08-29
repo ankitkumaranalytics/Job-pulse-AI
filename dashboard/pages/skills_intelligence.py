@@ -16,6 +16,7 @@ if str(ROOT) not in sys.path:
 from dashboard.components.charts import horizontal_bar, donut_chart
 from src import analytics
 from src.skill_extractor import SKILL_CATEGORIES
+from src.utils import unique_options
 
 
 def render(df: pd.DataFrame) -> None:
@@ -26,6 +27,16 @@ def render(df: pd.DataFrame) -> None:
         'by demand, by role, and by location.</div>',
         unsafe_allow_html=True,
     )
+
+    if df.empty:
+        st.warning("No data is available for the selected filters. Please adjust your filters.")
+        return
+
+    has_roles = "standardized_job_title" in df.columns
+    has_city = "city" in df.columns
+    missing = [c for c, ok in (("standardized_job_title", has_roles), ("city", has_city)) if not ok]
+    if missing:
+        st.warning(f"Columns missing from dataset: {', '.join(missing)}. Some sections are hidden.")
 
     # ---------------- Top 20 skills ----------------
     st.markdown("### 🔝 Top 20 Most Demanded Skills")
@@ -45,13 +56,13 @@ def render(df: pd.DataFrame) -> None:
 
     with col_l:
         st.markdown("### 📂 Skill Category Distribution")
-        all_skills = df["extracted_skills"].tolist()
         category_counts = {}
-        for skills in all_skills:
-            if isinstance(skills, (list, set)):
-                for s in skills:
-                    cat = SKILL_CATEGORIES.get(s, "Other")
-                    category_counts[cat] = category_counts.get(cat, 0) + 1
+        if "extracted_skills" in df.columns:
+            for skills in df["extracted_skills"].tolist():
+                if isinstance(skills, (list, set)):
+                    for s in skills:
+                        cat = SKILL_CATEGORIES.get(s, "Other")
+                        category_counts[cat] = category_counts.get(cat, 0) + 1
         if category_counts:
             items = sorted(category_counts.items(), key=lambda x: -x[1])
             st.plotly_chart(
@@ -63,8 +74,11 @@ def render(df: pd.DataFrame) -> None:
 
     with col_r:
         st.markdown("### 🎯 Skills by Job Role")
-        role = st.selectbox("Select Job Role", sorted(df["standardized_job_title"].unique()))
-        if role:
+        role_options = unique_options(df, "standardized_job_title")
+        role = st.selectbox("Select Job Role", role_options) if role_options else None
+        if not role_options:
+            st.info("No job role data available")
+        elif role:
             role_df = df[df["standardized_job_title"] == role]
             role_skills = analytics.get_top_skills(role_df, n=12)
             if len(role_skills) > 0:
@@ -81,11 +95,11 @@ def render(df: pd.DataFrame) -> None:
     st.markdown("### 📍 Skills by Location")
     col1, col2 = st.columns([1, 3])
     with col1:
-        loc = st.selectbox("Select Location", ["All"] + sorted(df["city"].unique().tolist()))
+        loc = st.selectbox("Select Location", ["All"] + unique_options(df, "city"))
     with col2:
         st.caption("Most in-demand skills in the selected location")
 
-    if loc and loc != "All":
+    if loc and loc != "All" and "city" in df.columns:
         loc_df = df[df["city"] == loc]
     else:
         loc_df = df
@@ -121,12 +135,16 @@ def render(df: pd.DataFrame) -> None:
     # ---------------- Role comparison ----------------
     st.markdown("### ⚖️ Compare Two Job Roles")
 
-    roles = sorted(df["standardized_job_title"].unique().tolist())
+    roles = unique_options(df, "standardized_job_title")
+    if len(roles) < 2:
+        st.info("At least two different job roles are required for comparison.")
+        return
+
     col1, col2 = st.columns(2)
     with col1:
         role1 = st.selectbox("Role A", roles, index=0)
     with col2:
-        role2 = st.selectbox("Role B", roles, index=min(1, len(roles) - 1))
+        role2 = st.selectbox("Role B", roles, index=1)
 
     if role1 and role2 and role1 != role2:
         comparison = analytics.get_role_comparison(df, role1, role2)

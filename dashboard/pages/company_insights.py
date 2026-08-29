@@ -27,13 +27,17 @@ def render(df: pd.DataFrame) -> None:
         unsafe_allow_html=True,
     )
 
-    if "company" not in df.columns:
+    if "company" not in df.columns or df["company"].dropna().empty:
         st.warning("No company data available in the dataset.")
         return
 
     # ---------------- Company selector ----------------
     companies = df["company"].value_counts()
     top_companies = companies.head(15)
+
+    if companies.empty:
+        st.warning("No company data available in the dataset.")
+        return
 
     col1, col2 = st.columns([1, 2])
     with col1:
@@ -92,8 +96,11 @@ def render(df: pd.DataFrame) -> None:
 
     with col_l:
         st.markdown("### 🎯 Job Roles by Company")
-        role_counts = comp_df["standardized_job_title"].value_counts().head(8).reset_index()
-        role_counts.columns = ["job_role", "count"]
+        if "standardized_job_title" in comp_df.columns:
+            role_counts = comp_df["standardized_job_title"].value_counts().head(8).reset_index()
+            role_counts.columns = ["job_role", "count"]
+        else:
+            role_counts = pd.DataFrame()
         if len(role_counts) > 0:
             st.plotly_chart(
                 horizontal_bar(role_counts, "count", "job_role", height=340),
@@ -104,8 +111,11 @@ def render(df: pd.DataFrame) -> None:
 
     with col_r:
         st.markdown("### 📍 Locations by Company")
-        loc_counts = comp_df["city"].value_counts().head(8).reset_index()
-        loc_counts.columns = ["location", "count"]
+        if "city" in comp_df.columns:
+            loc_counts = comp_df["city"].value_counts().head(8).reset_index()
+            loc_counts.columns = ["location", "count"]
+        else:
+            loc_counts = pd.DataFrame()
         if len(loc_counts) > 0:
             st.plotly_chart(
                 horizontal_bar(loc_counts, "count", "location", height=340),
@@ -134,8 +144,11 @@ def render(df: pd.DataFrame) -> None:
 
     with col_l2:
         st.markdown("### 📅 Experience Requirements")
-        exp_counts = comp_df["experience_category"].value_counts().reset_index()
-        exp_counts.columns = ["experience", "count"]
+        if "experience_category" in comp_df.columns:
+            exp_counts = comp_df["experience_category"].value_counts().reset_index()
+            exp_counts.columns = ["experience", "count"]
+        else:
+            exp_counts = pd.DataFrame()
         if len(exp_counts) > 0:
             st.plotly_chart(
                 donut_chart(exp_counts["experience"].tolist(), exp_counts["count"].tolist(), height=320),
@@ -146,8 +159,11 @@ def render(df: pd.DataFrame) -> None:
 
     with col_r2:
         st.markdown("### 🏭 Industries")
-        ind_counts = comp_df["industry"].value_counts().head(6).reset_index()
-        ind_counts.columns = ["industry", "count"]
+        if "industry" in comp_df.columns:
+            ind_counts = comp_df["industry"].value_counts().head(6).reset_index()
+            ind_counts.columns = ["industry", "count"]
+        else:
+            ind_counts = pd.DataFrame()
         if len(ind_counts) > 0:
             st.plotly_chart(
                 bar_chart(ind_counts, "industry", "count", height=320),

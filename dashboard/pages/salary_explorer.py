@@ -17,8 +17,18 @@ if str(ROOT) not in sys.path:
 from dashboard.components.charts import horizontal_bar, bar_chart, scatter_salary
 from dashboard.components.metrics import fmt_lpa
 from src import analytics
+from src.utils import unique_options
 
 MIN_SALARY_RECORDS = 10
+
+
+def _safe_options(df: pd.DataFrame, column: str) -> list:
+    """Return sorted unique filter options, tolerating missing/empty columns."""
+    if column in df.columns:
+        vals = df[column].dropna()
+        if not vals.empty:
+            return ["All"] + sorted(vals.unique().tolist())
+    return ["All"]
 
 
 def render(df: pd.DataFrame) -> None:
@@ -48,18 +58,18 @@ def render(df: pd.DataFrame) -> None:
 
     with col1:
         role = st.selectbox(
-            "Job Role", ["All"] + sorted(salary_df["standardized_job_title"].unique().tolist())
+            "Job Role", ["All"] + unique_options(salary_df, "standardized_job_title")
         )
     with col2:
         loc = st.selectbox(
-            "Location", ["All"] + sorted(salary_df["city"].unique().tolist())
+            "Location", ["All"] + unique_options(salary_df, "city")
         )
     with col3:
         exp = st.selectbox(
-            "Experience", ["All"] + sorted(salary_df["experience_category"].unique().tolist())
+            "Experience", ["All"] + unique_options(salary_df, "experience_category")
         )
     with col4:
-        ind = st.selectbox("Industry", ["All"] + sorted(salary_df["industry"].unique().tolist()))
+        ind = st.selectbox("Industry", ["All"] + unique_options(salary_df, "industry"))
 
     filtered = salary_df.copy()
     if role != "All":
@@ -109,18 +119,18 @@ def render(df: pd.DataFrame) -> None:
         sal_role = analytics.get_salary_by_role(filtered)
         if len(sal_role) > 0:
             sal_role = sal_role[sal_role["count"] >= 3]
+        if len(sal_role) > 0:
             fig = horizontal_bar(sal_role, "avg_salary", "job_role", height=420)
             fig.update_layout(
                 xaxis=dict(tickformat=".0s"),
             )
             st.plotly_chart(fig, use_container_width=True)
         else:
-            st.info("Not enough data by role")
+            st.info("Not enough data by role (needs 3+ salary records per role)")
 
     with col_r:
         st.markdown("### 📍 Salary by Location")
         sal_loc = analytics.get_salary_by_location(filtered)
-        cnt_col = "count"
         if len(sal_loc) > 0:
             fig = bar_chart(sal_loc.sort_values("avg_salary", ascending=False), "location", "avg_salary", height=420)
             fig.update_layout(xaxis_tickangle=-45)
@@ -145,7 +155,10 @@ def render(df: pd.DataFrame) -> None:
 
     with col_r2:
         st.markdown("### 📈 Experience vs Salary")
-        scatter_df = filtered.dropna(subset=["experience_min"]).copy()
+        if "experience_min" in filtered.columns and "standardized_job_title" in filtered.columns:
+            scatter_df = filtered.dropna(subset=["experience_min"]).copy()
+        else:
+            scatter_df = pd.DataFrame()
         if len(scatter_df) >= MIN_SALARY_RECORDS:
             fig = scatter_salary(
                 scatter_df, "experience_min", "salary_lpa", "standardized_job_title",
