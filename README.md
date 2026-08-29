@@ -198,6 +198,9 @@ Activate it:
 
 ```bash
 pip install -r requirements.txt
+
+# Optional — for running tests & notebooks locally:
+pip install -r requirements-dev.txt
 ```
 
 ---
@@ -299,6 +302,9 @@ Then choose **option 4** from the menu.
 ## Running Tests
 
 ```bash
+# Dev dependencies required (installs pytest + jupyter):
+pip install -r requirements-dev.txt
+
 pytest tests/ -v
 ```
 ## Dashboard Pages

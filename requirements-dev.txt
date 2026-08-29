@@ -1,0 +1,8 @@
+# JobPulse AI — development & notebook tooling
+# (not required for the deployed dashboard)
+# Includes everything in requirements.txt plus dev/test packages.
+-r requirements.txt
+
+pytest>=7.4.0
+pytest-cov>=4.0.0
+jupyter>=1.0.0
