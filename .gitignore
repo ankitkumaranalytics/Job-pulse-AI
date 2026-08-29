@@ -1,0 +1,63 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+env/
+.env
+*.egg-info/
+
+# Data
+data/raw/*.csv
+data/cleaned/*.csv
+data/processed/*.csv
+data/**/*.csv
+!data/raw/README.md
+!data/cleaned/README.md
+!data/processed/README.md
+# Sample dataset + processed outputs ARE committed so the deployed
+# dashboard works out of the box (all data is synthetic/sample data).
+!data/raw/jobs.csv
+!data/processed/*.csv
+!data/cleaned/validation_report.csv
+
+# Database
+*.db
+*.sqlite3
+
+# Models
+models/*.pkl
+models/*.joblib
+models/*.pickle
+
+# Streamlit
+.streamlit/secrets.toml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
+# Notebooks ARE part of the portfolio - do not ignore them
+!notebooks/*.ipynb
+
+# Logs
+*.log
+logs/
+
+# Coverage
+.pytest_cache/
+htmlcov/
+.coverage
+coverage.xml
