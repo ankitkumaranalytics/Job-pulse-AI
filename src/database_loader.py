@@ -20,7 +20,9 @@ from sqlalchemy import (
 from sqlalchemy.orm import sessionmaker, declarative_base
 from sqlalchemy.engine import Engine
 
-from .config import DATABASE_URL, DB_HOST, DB_PORT, DB_NAME, DB_USER, logger
+from .config import (
+    DATABASE_URL, DB_HOST, DB_PORT, DB_NAME, DB_USER, is_db_configured, logger
+)
 
 Base = declarative_base()
 metadata = MetaData()
@@ -73,12 +75,35 @@ job_skills_table = Table(
 
 
 def get_engine(database_url: str = None) -> Engine:
-    """Create and return a SQLAlchemy engine."""
+    """
+    Create and return a SQLAlchemy engine.
+
+    Raises
+    ------
+    RuntimeError
+        If no database URL is provided and no credentials are configured.
+    """
     if database_url is None:
+        if not is_db_configured():
+            raise RuntimeError(
+                "Database is not configured: set DB_PASSWORD (and optionally "
+                "DB_HOST/DB_PORT/DB_NAME/DB_USER) via environment variables, "
+                ".env, or Streamlit secrets. The dashboard falls back to "
+                "processed CSV data automatically."
+            )
         database_url = DATABASE_URL
     try:
-        engine = create_engine(database_url, echo=False, pool_pre_ping=True)
-        logger.info("Database engine created for host=%s db=%s", DB_HOST, DB_NAME)
+        engine = create_engine(
+            database_url,
+            echo=False,
+            pool_pre_ping=True,
+            # Fail fast (5s) instead of hanging when the host is unreachable
+            # (e.g. localhost referenced from Streamlit Community Cloud).
+            connect_args={"connect_timeout": 5}
+            if database_url.startswith("postgresql") else {},
+        )
+        host = DB_HOST if database_url == DATABASE_URL else "(custom)"
+        logger.info("Database engine created for host=%s db=%s", host, DB_NAME)
         return engine
     except Exception as e:
         logger.error("Failed to create database engine: %s", e)

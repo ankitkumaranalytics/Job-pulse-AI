@@ -104,6 +104,19 @@ def file_exists(path: str | Path) -> bool:
     """Check if a file exists and is non-empty."""
     p = Path(path)
     return p.exists() and p.stat().st_size > 0
+def unique_options(df: pd.DataFrame, column: str) -> list[str]:
+    """
+    Return sorted, unique, non-null string values of *column*.
+
+    Safe for Streamlit selectboxes/multiselects: drops NaN/None/blank values
+    and always returns plain strings. Returns an empty list when the column
+    is missing or contains no valid values.
+    """
+    if column not in df.columns:
+        return []
+    values = df[column].dropna().astype(str).str.strip()
+    values = values[values != ""]
+    return sorted(values.unique().tolist())
 
 
 # ---------------------------------------------------------------------------

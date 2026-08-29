@@ -150,3 +150,96 @@ def detect_and_rename_columns(df: pd.DataFrame) -> pd.DataFrame:
         logger.info("Renamed columns: %s", rename_map)
 
     return df
+
+
+# ---------------------------------------------------------------------------
+# Dashboard-facing tiered dataset loading (PostgreSQL-free fallback chain)
+# ---------------------------------------------------------------------------
+# Priority: processed CSV -> cleaned CSV -> raw CSV -> clear error.
+# These functions are intentionally Streamlit-free so tests can use them;
+# the dashboard wraps them in @st.cache_data (see dashboard/components).
+
+class DatasetNotFoundError(RuntimeError):
+    """Raised when no usable dataset tier is available."""
+
+
+def parse_extracted_skills_column(df: pd.DataFrame) -> pd.DataFrame:
+    """Normalise the ``extracted_skills`` column to Python lists (in place)."""
+    if "extracted_skills" in df.columns and df["extracted_skills"].dtype == object:
+        df["extracted_skills"] = df["extracted_skills"].apply(
+            lambda x: x if isinstance(x, list) else (
+                [] if pd.isna(x) else [s.strip() for s in str(x).split(";") if s.strip()]
+            )
+        )
+    return df
+
+
+def load_tiered_dataset() -> tuple[pd.DataFrame, str]:
+    """
+    Load the best available dataset tier for the dashboard.
+
+    Returns
+    -------
+    (pd.DataFrame, str)
+        The dataframe and the tier name: 'processed', 'cleaned' or 'raw'.
+
+    Raises
+    ------
+    DatasetNotFoundError
+        If no dataset file exists at all (message explains what to run).
+    """
+    from .config import DATA_OUTPUT_DIR, CLEANED_DATA_DIR
+
+    processed_path = Path(DATA_OUTPUT_DIR) / "jobs_processed.csv"
+    cleaned_path = Path(CLEANED_DATA_DIR) / "jobs_cleaned.csv"
+
+    # Tier 1: processed (preferred - has all engineered features + skills)
+    if processed_path.exists():
+        try:
+            df = pd.read_csv(processed_path)
+            df = parse_extracted_skills_column(df)
+            logger.info("Dashboard data source: processed (%d rows)", len(df))
+            return df, "processed"
+        except Exception as exc:  # corrupted CSV - fall through to next tier
+            logger.warning("Processed CSV unreadable, falling back: %s", exc)
+
+    # Tier 2: cleaned (needs skill extraction + feature engineering)
+    if cleaned_path.exists():
+        try:
+            from .skill_extractor import extract_skills
+            from .feature_engineering import engineer_features
+
+            df = pd.read_csv(cleaned_path)
+            df = extract_skills(df)
+            df = engineer_features(df)
+            df = parse_extracted_skills_column(df)
+            logger.info("Dashboard data source: cleaned (%d rows)", len(df))
+            return df, "cleaned"
+        except Exception as exc:
+            logger.warning("Cleaned CSV pipeline failed, falling back: %s", exc)
+
+    # Tier 3: raw (run the minimal in-memory pipeline)
+    raw_path = Path(DATA_PATH)
+    if raw_path.exists():
+        from .skill_extractor import extract_skills
+        from .feature_engineering import engineer_features
+        from .data_cleaning import clean_data
+
+        raw = load_raw_data(str(raw_path))
+        raw = detect_and_rename_columns(raw)
+        df = clean_data(raw)
+        df = extract_skills(df)
+        df = engineer_features(df)
+        df = parse_extracted_skills_column(df)
+        logger.info("Dashboard data source: raw (%d rows)", len(df))
+        return df, "raw"
+
+    # Nothing available - raise with actionable guidance
+    raise DatasetNotFoundError(
+        "No job market dataset found. Looked for:\n"
+        f"  - {processed_path}\n"
+        f"  - {cleaned_path}\n"
+        f"  - {raw_path}\n"
+        "Fix: run 'python scripts/generate_sample_data.py' followed by "
+        "'python scripts/run_pipeline.py --skip-db'."
+    )

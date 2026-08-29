@@ -159,6 +159,20 @@ SKILL_CATEGORIES: dict = {
 # Skill Extraction Functions
 # ---------------------------------------------------------------------------
 
+def _skill_pattern(phrase: str) -> str:
+    """
+    Build a safe regex for a skill name/alias.
+
+    Uses lookarounds instead of \\b so that skills ending in non-word
+    characters still match (e.g. "C++", "C#") while never matching inside
+    larger words. Single-letter skill "R" additionally rejects "R&D".
+    """
+    escaped = re.escape(phrase)
+    if phrase == "r":
+        return r"(?<![a-z0-9])r(?![a-z0-9&])"
+    return r"(?<![a-z0-9])" + escaped + r"(?![a-z0-9])"
+
+
 def extract_skills_from_text(text: str) -> list[str]:
     """
     Extract canonical skill names from free text (e.g., job description).
@@ -175,13 +189,12 @@ def extract_skills_from_text(text: str) -> list[str]:
     # Check each canonical skill and its aliases
     for canonical, aliases in SKILL_DICTIONARY.items():
         # Check the canonical name itself
-        if re.search(r'\b' + re.escape(canonical.lower()) + r'\b', text_lower):
+        if re.search(_skill_pattern(canonical.lower()), text_lower):
             found.add(canonical)
             continue
         # Check each alias
         for alias in aliases:
-            pattern = re.escape(alias.lower())
-            if re.search(r'\b' + pattern + r'\b', text_lower):
+            if re.search(_skill_pattern(alias.lower()), text_lower):
                 found.add(canonical)
                 break
 

@@ -1,29 +1,96 @@
 """
 Configuration module for JobPulse AI.
-Loads settings from environment variables with sensible defaults.
+
+Configuration priority (highest first):
+1. Streamlit Secrets (st.secrets) - for Streamlit Community Cloud
+2. Environment variables
+3. .env file (local development only - optional, never required)
+
+The application must NEVER require a database or a .env file to run:
+the dashboard falls back to processed CSV data when PostgreSQL is
+unavailable or unconfigured.
 """
 import os
 from pathlib import Path
 from dotenv import load_dotenv
 
-# Load environment variables from .env file (if exists)
+# Load environment variables from .env file (no-op when the file is absent)
 load_dotenv()
 
 # Base project root (two levels up from this file: src/config.py -> project root)
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # ---------------------------------------------------------------------------
-# Database Configuration (PostgreSQL)
+# Database Configuration (PostgreSQL) - entirely OPTIONAL
 # ---------------------------------------------------------------------------
-DB_HOST: str = os.getenv("DB_HOST", "localhost")
-DB_PORT: int = int(os.getenv("DB_PORT", "5432"))
-DB_NAME: str = os.getenv("DB_NAME", "jobpulse_db")
-DB_USER: str = os.getenv("DB_USER", "postgres")
-DB_PASSWORD: str = os.getenv("DB_PASSWORD", "your_password")
+# Precedence: Streamlit secrets -> environment variables -> .env -> defaults.
+# An empty DB_PASSWORD means the database is treated as NOT configured and
+# all consumers fall back to processed CSV data (no connection is attempted).
 
-DATABASE_URL: str = (
-    f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
-)
+
+def _get_setting(key: str, default: str = "") -> str:
+    """Read a setting from Streamlit secrets, then env vars, then default."""
+    # 1. Streamlit secrets (safe import: src is also used outside Streamlit)
+    try:
+        import streamlit as st  # noqa: PLC0415 - deferred import
+
+        if key in st.secrets:
+            return str(st.secrets[key])
+    except Exception:  # streamlit not installed / not running / no secrets file
+        pass
+    # 2. Environment variable
+    return os.getenv(key, default)
+
+
+def get_db_config() -> dict[str, str] | None:
+    """
+    Return database connection settings, or ``None`` when unconfigured.
+
+    Returns None if DB_ENABLED is explicitly 'false' or if no password is
+    provided (placeholder-free default keeps local dev from attempting
+    doomed connections). Never logs or exposes secrets.
+    """
+    enabled = _get_setting("DB_ENABLED", "").strip().lower()
+    if enabled == "false":
+        return None
+
+    password = _get_setting("DB_PASSWORD", "")
+    if not password:
+        # No credentials -> database intentionally unconfigured
+        return None
+
+    return {
+        "host": _get_setting("DB_HOST", "localhost"),
+        "port": _get_setting("DB_PORT", "5432"),
+        "name": _get_setting("DB_NAME", "jobpulse_db"),
+        "user": _get_setting("DB_USER", "postgres"),
+        "password": password,
+    }
+
+
+def build_database_url(cfg: dict[str, str]) -> str:
+    """Build a SQLAlchemy URL from a db config dict (never log the result)."""
+    return (
+        f"postgresql+psycopg2://{cfg['user']}:{cfg['password']}"
+        f"@{cfg['host']}:{cfg['port']}/{cfg['name']}"
+    )
+
+
+# Backwards-compatible module-level access (pipeline scripts).
+# NOTE: callers must check `is_db_configured()` before using DATABASE_URL.
+_DB_CFG = get_db_config()
+DB_HOST: str = _DB_CFG["host"] if _DB_CFG else "localhost"
+DB_PORT: int = int(_DB_CFG["port"]) if _DB_CFG else 5432
+DB_NAME: str = _DB_CFG["name"] if _DB_CFG else "jobpulse_db"
+DB_USER: str = _DB_CFG["user"] if _DB_CFG else "postgres"
+DB_PASSWORD: str = _DB_CFG["password"] if _DB_CFG else ""
+DATABASE_URL: str = build_database_url(_DB_CFG) if _DB_CFG else ""
+
+
+def is_db_configured() -> bool:
+    """True when database credentials are available (secrets/env/.env)."""
+    return bool(DATABASE_URL)
+
 
 # ---------------------------------------------------------------------------
 # Data Paths
