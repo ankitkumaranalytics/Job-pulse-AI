@@ -59,15 +59,55 @@ class JobRecommender:
         if "extracted_skills" not in self.df.columns:
             raise ValueError("DataFrame must have 'extracted_skills' column")
 
+        if len(self.df) == 0:
+            logger.warning("JobRecommender.fit called with an empty DataFrame")
+            self._is_fitted = True
+            return
+
         combined_texts = self.df.apply(self._build_combined_text, axis=1).tolist()
 
-        self._tfidf = TfidfVectorizer(
-            max_features=5000,
-            stop_words="english",
-            ngram_range=(1, 2),
-            lowercase=True,
+        # Guard against empty vocabulary: if every description/skill string is
+        # blank, TfidfVectorizer.fit_transform would raise a confusing
+        # ValueError. Disable the TF-IDF component instead and let
+        # recommend() fall back to the rule-based score components only.
+        if not any(t.strip() for t in combined_texts):
+            logger.warning(
+                "TF-IDF disabled: job corpus contains no usable text "
+                "(all descriptions/skills empty). Rule-based matching only."
+            )
+            self._tfidf = None
+            self._tfidf_matrix = None
+        else:
+            self._tfidf = TfidfVectorizer(
+                max_features=5000,
+                stop_words="english",
+                ngram_range=(1, 2),
+                lowercase=True,
+            )
+            self._tfidf_matrix = self._tfidf.fit_transform(combined_texts)
+
+        # Pre-extract per-row values once so recommend() avoids slow iloc calls
+        self._job_skills = [
+            s if isinstance(s, (list, set)) else []
+            for s in self.df["extracted_skills"].tolist()
+        ]
+        self._job_locations = (
+            self.df["city"].fillna("").astype(str).tolist()
+            if "city" in self.df.columns
+            else self.df["location"].fillna("").astype(str).tolist()
+            if "location" in self.df.columns
+            else [""] * len(self.df)
         )
-        self._tfidf_matrix = self._tfidf.fit_transform(combined_texts)
+        self._job_roles = (
+            self.df["standardized_job_title"].fillna("").astype(str).tolist()
+            if "standardized_job_title" in self.df.columns
+            else [""] * len(self.df)
+        )
+        self._job_exp_min = (
+            pd.to_numeric(self.df["experience_min"], errors="coerce").tolist()
+            if "experience_min" in self.df.columns
+            else [None] * len(self.df)
+        )
         self._is_fitted = True
         logger.info("TF-IDF model fitted on %d documents", len(combined_texts))
 
@@ -137,31 +177,27 @@ class JobRecommender:
         pd.DataFrame
             Top 10 recommended jobs, sorted by match score.
         """
+        if len(self.df) == 0 or "extracted_skills" not in self.df.columns:
+            return pd.DataFrame()
+
         if not self._is_fitted:
             self.fit()
 
-        if "extracted_skills" not in self.df.columns:
-            return pd.DataFrame()
-
-        # Build user skill text for TF-IDF similarity
-        user_text = " ".join(user_skills)
-        user_vector = self._tfidf.transform([user_text])
-
-        # Compute TF-IDF cosine similarity
-        tfidf_sim = cosine_similarity(user_vector, self._tfidf_matrix).flatten()
-
-        # Compute component scores
-        role_col = "standardized_job_title"
-        city_col = "city"
-        exp_min_col = "experience_min"
+        # Build user skill text for TF-IDF similarity.
+        # If the vectorizer was disabled (empty corpus), fall back to a zero
+        # similarity vector so the rule-based components still produce results.
+        tfidf_sim = np.zeros(len(self.df))
+        if self._tfidf is not None and self._tfidf_matrix is not None:
+            user_text = " ".join(user_skills)
+            user_vector = self._tfidf.transform([user_text])
+            tfidf_sim = cosine_similarity(user_vector, self._tfidf_matrix).flatten()
 
         results = []
         for idx in range(len(self.df)):
-            row = self.df.iloc[idx]
-            job_skills = row.get("extracted_skills", [])
-            job_location = row.get(city_col, "") if city_col in row else row.get("location", "")
-            job_role = row.get(role_col, "") if role_col in row else ""
-            job_exp_min = row.get(exp_min_col, None) if exp_min_col in row else None
+            job_skills = self._job_skills[idx]
+            job_location = self._job_locations[idx]
+            job_role = self._job_roles[idx]
+            job_exp_min = self._job_exp_min[idx]
 
             skill_match = self._compute_skill_match(user_skills, job_skills)
             location_match = self._compute_location_match(preferred_location, job_location)
@@ -178,18 +214,18 @@ class JobRecommender:
             )
 
             missing_skills = []
-            if isinstance(job_skills, (list, set)):
-                user_lower = set(s.lower().strip() for s in user_skills)
-                missing_skills = [s for s in job_skills if s.lower().strip() not in user_lower]
+            user_lower = set(s.lower().strip() for s in user_skills)
+            missing_skills = [s for s in job_skills if str(s).lower().strip() not in user_lower]
 
+            row = self.df.iloc[idx]
             results.append({
                 "job_title": row.get("job_title", ""),
                 "company": row.get("company", ""),
                 "location": job_location,
-                "skills": ", ".join(str(s) for s in (job_skills if isinstance(job_skills, list) else []))[:200],
+                "skills": ", ".join(str(s) for s in job_skills)[:200],
                 "match_score": round(composite, 3),
                 "skill_match": round(skill_match, 3),
-                "missing_skills": ", ".join(missing_skills[:5]),
+                "missing_skills": ", ".join(str(s) for s in missing_skills[:5]),
                 "salary_average": row.get("salary_average", np.nan),
             })
 

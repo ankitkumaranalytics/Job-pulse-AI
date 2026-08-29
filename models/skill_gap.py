@@ -59,6 +59,8 @@ class SkillGapAnalyzer:
         - Optional: < 25%
         """
         skill_counts = self._get_skills_by_role(role)
+        if "standardized_job_title" not in self.df.columns:
+            return []
         role_df = self.df[self.df["standardized_job_title"] == role]
         total_jobs = len(role_df)
         if total_jobs == 0:
@@ -90,7 +92,7 @@ class SkillGapAnalyzer:
                 "score": 0,
                 "error": f"No data for role '{target_role}'. Try a different role.",
                 "matched_skills": [],
-                "missing_skills": [],
+                "missing_skills": {"critical": [], "important": [], "optional": []},
                 "recommendations": [],
                 "skill_match_pct": 0,
             }
