@@ -1,0 +1,3 @@
+"""
+JobPulse AI Dashboard Package
+"""
