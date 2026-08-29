@@ -1,0 +1,3 @@
+WARNING: This dataset is SYNTHETIC/SAMPLE data generated for
+demonstration and portfolio purposes only. It does not represent
+real job postings, real companies, or real market data.

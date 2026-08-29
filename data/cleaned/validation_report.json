@@ -1,0 +1,189 @@
+{
+  "timestamp": "2026-08-30T00:15:07.152078",
+  "total_rows": 10200,
+  "valid_rows": 10200,
+  "invalid_rows": 0,
+  "duplicate_rows": 200,
+  "missing_values": {
+    "job_id": 0,
+    "job_title": 208,
+    "company": 196,
+    "location": 0,
+    "city": 339,
+    "state": 0,
+    "country": 0,
+    "industry": 506,
+    "salary": 499,
+    "salary_min": 558,
+    "salary_max": 497,
+    "currency": 0,
+    "experience": 415,
+    "experience_min": 386,
+    "experience_max": 410,
+    "employment_type": 315,
+    "posting_date": 294,
+    "job_description": 521,
+    "skills": 0
+  },
+  "warnings": [
+    "Found 200 exact duplicate rows",
+    "Found 215 near-duplicate rows",
+    "'job_title': 208 empty or missing titles",
+    "'job_description': 521 empty or missing descriptions"
+  ],
+  "errors": [],
+  "column_report": {
+    "job_id": {
+      "dtype": "str",
+      "non_null": 10200,
+      "null_count": 0,
+      "null_pct": 0.0,
+      "invalid_count": 0,
+      "unique_count": 10000
+    },
+    "job_title": {
+      "dtype": "str",
+      "non_null": 9992,
+      "null_count": 208,
+      "null_pct": 2.04,
+      "invalid_count": 0,
+      "unique_count": 76
+    },
+    "company": {
+      "dtype": "str",
+      "non_null": 10004,
+      "null_count": 196,
+      "null_pct": 1.92,
+      "invalid_count": 0,
+      "unique_count": 20
+    },
+    "location": {
+      "dtype": "str",
+      "non_null": 10200,
+      "null_count": 0,
+      "null_pct": 0.0,
+      "invalid_count": 0,
+      "unique_count": 11
+    },
+    "city": {
+      "dtype": "str",
+      "non_null": 9861,
+      "null_count": 339,
+      "null_pct": 3.32,
+      "invalid_count": 0,
+      "unique_count": 11
+    },
+    "state": {
+      "dtype": "str",
+      "non_null": 10200,
+      "null_count": 0,
+      "null_pct": 0.0,
+      "invalid_count": 0,
+      "unique_count": 10
+    },
+    "country": {
+      "dtype": "str",
+      "non_null": 10200,
+      "null_count": 0,
+      "null_pct": 0.0,
+      "invalid_count": 0,
+      "unique_count": 1
+    },
+    "industry": {
+      "dtype": "str",
+      "non_null": 9694,
+      "null_count": 506,
+      "null_pct": 4.96,
+      "invalid_count": 0,
+      "unique_count": 8
+    },
+    "salary": {
+      "dtype": "str",
+      "non_null": 9701,
+      "null_count": 499,
+      "null_pct": 4.89,
+      "invalid_count": 0,
+      "unique_count": 35
+    },
+    "salary_min": {
+      "dtype": "float64",
+      "non_null": 9642,
+      "null_count": 558,
+      "null_pct": 5.47,
+      "invalid_count": 0,
+      "unique_count": 90
+    },
+    "salary_max": {
+      "dtype": "float64",
+      "non_null": 9703,
+      "null_count": 497,
+      "null_pct": 4.87,
+      "invalid_count": 0,
+      "unique_count": 9505
+    },
+    "currency": {
+      "dtype": "str",
+      "non_null": 10200,
+      "null_count": 0,
+      "null_pct": 0.0,
+      "invalid_count": 0,
+      "unique_count": 1
+    },
+    "experience": {
+      "dtype": "str",
+      "non_null": 9785,
+      "null_count": 415,
+      "null_pct": 4.07,
+      "invalid_count": 0,
+      "unique_count": 41
+    },
+    "experience_min": {
+      "dtype": "float64",
+      "non_null": 9814,
+      "null_count": 386,
+      "null_pct": 3.78,
+      "invalid_count": 0,
+      "unique_count": 10
+    },
+    "experience_max": {
+      "dtype": "float64",
+      "non_null": 9790,
+      "null_count": 410,
+      "null_pct": 4.02,
+      "invalid_count": 0,
+      "unique_count": 13
+    },
+    "employment_type": {
+      "dtype": "str",
+      "non_null": 9885,
+      "null_count": 315,
+      "null_pct": 3.09,
+      "invalid_count": 0,
+      "unique_count": 3
+    },
+    "posting_date": {
+      "dtype": "str",
+      "non_null": 9906,
+      "null_count": 294,
+      "null_pct": 2.88,
+      "invalid_count": 0,
+      "unique_count": 366
+    },
+    "job_description": {
+      "dtype": "str",
+      "non_null": 9679,
+      "null_count": 521,
+      "null_pct": 5.11,
+      "invalid_count": 0,
+      "unique_count": 5560
+    },
+    "skills": {
+      "dtype": "str",
+      "non_null": 10200,
+      "null_count": 0,
+      "null_pct": 0.0,
+      "invalid_count": 0,
+      "unique_count": 1391
+    }
+  }
+}

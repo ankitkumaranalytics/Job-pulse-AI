@@ -1,0 +1,71 @@
+skill_name,skill_category,aliases
+Python,Programming,python; python3; python2; py
+R,Programming,r language; rstats; r programming
+Java,Programming,java; core java; j2ee; spring
+Scala,Programming,scala
+SQL,Programming,sql; tsql; pl/sql; plsql
+JavaScript,Programming,javascript; js; node.js; nodejs; react; angular; vue
+C++,Programming,c++; cpp; c plus plus
+C#,Programming,c#; csharp; .net; asp.net
+Go,Programming,golang; go language
+Rust,Programming,rust
+Shell,Programming,shell; bash; sh; zsh; powershell
+MySQL,Databases,mysql; my sql
+PostgreSQL,Databases,postgresql; postgres; pg; psql; redshift
+SQL Server,Databases,sql server; mssql; ms sql; sqlserver
+MongoDB,Databases,mongodb; mongo; mongo db
+Redis,Databases,redis
+Cassandra,Databases,cassandra; apache cassandra
+Oracle,Databases,oracle; oracle db; oradb
+Elasticsearch,Databases,elasticsearch; elastic; elk
+Snowflake,Databases,snowflake
+BigQuery,Databases,bigquery; big query; bq
+SQLite,Databases,sqlite; sqlite3
+Power BI,Visualization,power bi; powerbi; ms power bi; pbi
+Tableau,Visualization,tableau; tableau software
+Excel,Visualization,excel; ms excel; microsoft excel; advanced excel
+Looker,Visualization,looker
+Qlik,Visualization,qlik; qlikview; qliksense
+D3.js,Visualization,d3.js; d3; d3js
+Matplotlib,Visualization,matplotlib; mpl
+Seaborn,Visualization,seaborn
+Plotly,Visualization,plotly
+AWS,Cloud,aws; amazon web services; amazon aws; ec2; s3; lambda
+Azure,Cloud,azure; microsoft azure; ms azure; azure cloud
+GCP,Cloud,gcp; google cloud; google cloud platform
+Spark,Data Engineering,spark; apache spark; pyspark; spark streaming
+Hadoop,Data Engineering,hadoop; apache hadoop; hdfs; mapreduce
+Airflow,Data Engineering,airflow; apache airflow
+Kafka,Data Engineering,kafka; apache kafka; confluent
+NiFi,Data Engineering,nifi
+DBT,Data Engineering,dbt; data build tool
+Fivetran,Data Engineering,fivetran
+Scikit-learn,Machine Learning,scikit-learn; sklearn; scikit learn
+TensorFlow,Machine Learning,tensorflow; tf; keras
+PyTorch,Machine Learning,pytorch; torch
+XGBoost,Machine Learning,xgboost; xg boost
+LightGBM,Machine Learning,lightgbm; light gbm
+ONNX,Machine Learning,onnx
+Hugging Face,Machine Learning,hugging face; transformers
+NLP,Machine Learning,nlp; natural language processing; nltk; spacy; bert
+Computer Vision,Machine Learning,computer vision; opencv; cv2; yolo
+Pandas,Data Analysis,pandas; pd
+NumPy,Data Analysis,numpy; np
+Statistics,Data Analysis,statistics; statistical analysis; stats
+Data Cleaning,Data Analysis,data cleaning; data cleansing; data wrangling
+Data Visualization,Data Analysis,data visualization; data viz; visualization
+A/B Testing,Data Analysis,a/b testing; ab testing; split testing
+Time Series,Data Analysis,time series; forecasting
+Docker,DevOps,docker; dockerize
+Kubernetes,DevOps,kubernetes; k8s; kubectl
+Git,DevOps,git; github; gitlab; bitbucket
+CI/CD,DevOps,ci/cd; jenkins; circleci; github actions
+Terraform,DevOps,terraform
+Ansible,DevOps,ansible
+API,Other,api; rest api; restful; graphql
+Microservices,Other,microservices; micro services
+Agile,Other,agile; scrum; kanban; lean
+JIRA,Other,jira; atlassian
+Confluence,Other,confluence
+Hive,Big Data,hive; apache hive
+Presto,Big Data,presto; prestodb
