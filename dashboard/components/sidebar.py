@@ -141,21 +141,22 @@ def render_health_section() -> None:
 
 
 def render_sidebar() -> None:
-    """Render the sidebar branding, navigation info and health section."""
+    """Render the sidebar branding, hero-feature promo and health section."""
     with st.sidebar:
-        st.markdown("## 📊 JobPulse AI")
-        st.markdown("*Job Market & Skills Intelligence*")
+        st.markdown("## JobPulse AI")
+        st.caption("*Job Market & Skills Intelligence Platform*")
         st.divider()
-        st.caption("**Pages**")
-        st.markdown("""
-        - 🏠 Home
-        - 📈 Market Insights
-        - 🧠 Skills Intelligence
-        - 💰 Salary Explorer
-        - 🏢 Company Insights
-        - 🎯 Career Advisor
-        - 📋 Job Recommendations
-        """)
+        # Hero-feature promo (Phase 3): the Career Advisor is starred here
+        # and in the navigation radio; the radio itself is rendered by app.py.
+        st.markdown(
+            '<div class="advisor-promo">⭐ <strong>AI Career Advisor</strong>'
+            "<br><span>Our hero feature — discover your skill gap, career "
+            "readiness score and personalised learning roadmap.</span></div>",
+            unsafe_allow_html=True,
+        )
+        st.caption(
+            "**Journey:** Market → Skills → Career Fit → Roadmap → Jobs"
+        )
         st.divider()
         # Non-blocking data-source badge
         source = st.session_state.get("data_source")

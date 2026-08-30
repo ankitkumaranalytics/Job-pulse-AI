@@ -233,6 +233,26 @@ def get_company_skill_range(df: pd.DataFrame, n: int = 10) -> pd.DataFrame:
     return grouped
 
 
+def get_skill_category_counts(df: pd.DataFrame) -> pd.DataFrame:
+    """Return demand counts grouped by skill category (Programming, Databases, ...)."""
+    from .skill_extractor import SKILL_CATEGORIES  # local import avoids a cycle
+
+    if "extracted_skills" not in df.columns:
+        return pd.DataFrame(columns=["category", "count"])
+    counts: dict[str, int] = {}
+    for val in df["extracted_skills"]:
+        if not isinstance(val, (list, set)):
+            continue
+        for skill in val:
+            cat = SKILL_CATEGORIES.get(skill, "Other")
+            counts[cat] = counts.get(cat, 0) + 1
+    if not counts:
+        return pd.DataFrame(columns=["category", "count"])
+    return pd.DataFrame(
+        sorted(counts.items(), key=lambda kv: -kv[1]), columns=["category", "count"]
+    )
+
+
 def _flatten_skills(df: pd.DataFrame) -> list[str]:
     """Flatten the extracted_skills column into a flat list of skill names."""
     skills_col = "extracted_skills"
@@ -245,4 +265,69 @@ def _flatten_skills(df: pd.DataFrame) -> list[str]:
         elif isinstance(val, str) and val.strip():
             all_skills.extend(s.strip() for s in val.split(","))
     return all_skills
+
+
+def get_company_profile(df: pd.DataFrame, company: str) -> dict:
+    """Build a single-company profile using only available dataset columns.
+
+    Never invents facts: every value is aggregated from postings of
+    ``company`` in the loaded dataset. Missing columns degrade to empty
+    Series / None values instead of raising.
+    """
+    if df.empty or "company" not in df.columns:
+        return {}
+    comp = df[df["company"] == company]
+    if comp.empty:
+        return {}
+
+    profile: dict = {"total_postings": int(len(comp))}
+
+    # Roles
+    role_col = next(
+        (c for c in ("standardized_job_title", "job_title") if c in comp.columns), None
+    )
+    profile["top_roles"] = (
+        comp[role_col].value_counts().head(8) if role_col else pd.Series(dtype=int)
+    )
+
+    # Locations
+    loc_col = next((c for c in ("city", "location") if c in comp.columns), None)
+    profile["locations"] = (
+        comp[loc_col].value_counts().head(8) if loc_col else pd.Series(dtype=int)
+    )
+
+    # Skills
+    skills = _flatten_skills(comp)
+    profile["top_skills"] = (
+        pd.Series(skills).value_counts().head(10) if skills else pd.Series(dtype=int)
+    )
+
+    # Experience requirements
+    profile["experience"] = (
+        comp["experience_category"].value_counts()
+        if "experience_category" in comp.columns
+        else pd.Series(dtype=int)
+    )
+
+    # Salary (valid records only)
+    if "salary_average" in comp.columns:
+        sal = comp["salary_average"].dropna()
+        profile["avg_salary"] = float(sal.mean()) if len(sal) else None
+        profile["salary_count"] = int(len(sal))
+    else:
+        profile["avg_salary"] = None
+        profile["salary_count"] = 0
+
+    # Industry & employment mix
+    profile["industries"] = (
+        comp["industry"].value_counts().head(5)
+        if "industry" in comp.columns
+        else pd.Series(dtype=int)
+    )
+    profile["employment_types"] = (
+        comp["employment_type"].value_counts().head(5)
+        if "employment_type" in comp.columns
+        else pd.Series(dtype=int)
+    )
+    return profile
 

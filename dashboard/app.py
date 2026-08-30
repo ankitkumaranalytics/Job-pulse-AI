@@ -30,52 +30,18 @@ st.set_page_config(
 
 from dashboard.components.styling import apply_custom_styles
 from dashboard.components.sidebar import render_sidebar, load_dashboard_data, parse_skills_for_session
+from dashboard.components.premium import NAV_LABELS, PAGE_KEYS
 
 
 def render_health_check(df, source: str, db_failed: bool) -> None:
     """
-    Developer-friendly diagnostic panel (Phase 17).
+    Deprecated: kept for backwards compatibility only.
 
-    Displays component status in a collapsible sidebar section without
-    ever exposing credentials, connection strings, or absolute paths.
+    The health panel now renders once, inside ``render_sidebar()``
+    (components/sidebar.py). Rendering it here as well duplicated the
+    section on every page.
     """
-    def _ok(condition: bool) -> str:
-        return "✅" if condition else "❌"
-
-    with st.sidebar.expander("🩺 System Health"):
-        st.markdown(
-            f"{_ok(df is not None and len(df) > 0)} **Dataset loaded** — "
-            f"{len(df):,} rows · source: `{source}`"
-        )
-
-        required = [
-            "job_title", "company", "standardized_job_title",
-            "extracted_skills", "posting_date",
-        ]
-        missing = [c for c in required if c not in df.columns]
-        st.markdown(
-            f"{_ok(not missing)} **Required columns**"
-            + (f" — missing: {', '.join(missing)}" if missing else "")
-        )
-
-        skill_ok = any(
-            isinstance(x, (list, set)) and len(x) > 0
-            for x in df["extracted_skills"].head(200)
-        ) if "extracted_skills" in df.columns else False
-        st.markdown(f"{_ok(skill_ok)} **Skill extraction data**")
-
-        try:
-            from models.job_recommender import JobRecommender  # noqa: F401
-            st.markdown("✅ **Recommendation engine available**")
-        except Exception:
-            st.markdown("❌ **Recommendation engine unavailable**")
-
-        st.markdown(
-            ("ℹ️ **Database (optional)** — unreachable, CSV fallback active"
-             if db_failed else
-             "✅ **Database (optional)** — not required in CSV mode")
-        )
-        st.markdown("✅ **Streamlit configuration working**")
+    return None
 
 
 def main() -> None:
@@ -113,24 +79,22 @@ def main() -> None:
             "All features remain available."
         )
 
-    render_health_check(df, source, db_failed)
-
-    # Simple built-in navigation using radio for reliability
-    pages = {
-        "🏠 Home": "home",
-        "📈 Market Insights": "market_insights",
-        "🧠 Skills Intelligence": "skills_intelligence",
-        "💰 Salary Explorer": "salary_explorer",
-        "🏢 Company Insights": "company_insights",
-        "🎯 Career Advisor": "career_advisor",
-        "📋 Job Recommendations": "job_recommendations",
-    }
-
+    # Health panel renders ONCE, inside render_sidebar() (sidebar.py).
+    # -----------------------------------------------------------------
+    # Navigation: canonical journey order defined in components.premium
+    # (Phase 3/14). The Career Advisor is the hero feature and is
+    # visually starred; CTA buttons on other pages navigate by setting
+    # st.session_state["nav_selection"].
     with st.sidebar:
         st.divider()
-        selection = st.radio("Navigate", list(pages.keys()), label_visibility="collapsed")
+        selection = st.radio(
+            "Navigate",
+            NAV_LABELS,
+            key="nav_selection",
+            label_visibility="collapsed",
+        )
 
-    page = pages[selection]
+    page = PAGE_KEYS[selection]
 
     # Import and render the selected page module
     if page == "home":

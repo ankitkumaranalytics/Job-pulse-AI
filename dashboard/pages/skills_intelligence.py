@@ -1,5 +1,8 @@
 """
-Skills Intelligence page - skill demand, role comparison, combos.
+Skills Intelligence page — "What skills does the market want?" (Phase 6).
+
+Top skills with demand share, category distribution, skills by role and
+a side-by-side role comparison — all computed from the dataset.
 """
 from __future__ import annotations
 
@@ -13,189 +16,167 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from dashboard.components.charts import horizontal_bar, donut_chart
+from dashboard.components.charts import donut_chart, horizontal_bar
+from dashboard.components.premium import (
+    cta_block,
+    empty_state,
+    insight_card,
+    page_header,
+    section_header,
+    skill_badges,
+)
 from src import analytics
-from src.skill_extractor import SKILL_CATEGORIES
 from src.utils import unique_options
 
 
 def render(df: pd.DataFrame) -> None:
     """Render the Skills Intelligence page."""
-    st.markdown('<div class="page-title">🧠 Skills Intelligence</div>', unsafe_allow_html=True)
-    st.markdown(
-        '<div class="page-subtitle">Understand which skills matter most — '
-        'by demand, by role, and by location.</div>',
-        unsafe_allow_html=True,
+    page_header(
+        "Skills Intelligence",
+        "What skills does the market want? Ranked demand, categories, roles and comparisons.",
+        eyebrow="Step 2 · Understand the Skills",
     )
 
-    if df.empty:
-        st.warning("No data is available for the selected filters. Please adjust your filters.")
+    if df is None or len(df) == 0:
+        empty_state("No Data Available", "No job market data is loaded. Run the data pipeline first.")
         return
 
-    has_roles = "standardized_job_title" in df.columns
-    has_city = "city" in df.columns
-    missing = [c for c, ok in (("standardized_job_title", has_roles), ("city", has_city)) if not ok]
-    if missing:
-        st.warning(f"Columns missing from dataset: {', '.join(missing)}. Some sections are hidden.")
-
-    # ---------------- Top 20 skills ----------------
-    st.markdown("### 🔝 Top 20 Most Demanded Skills")
+    # ---------------- Section 1 — Top skills ----------------
+    section_header("Most Demanded Skills", kicker="Section 1 · Ranked market demand")
     top_skills = analytics.get_top_skills(df, n=20)
-    if len(top_skills) > 0:
-        st.plotly_chart(
-            horizontal_bar(top_skills, "count", "skill", height=500),
-            use_container_width=True,
-        )
-    else:
-        st.info("No skill data available")
+    if len(top_skills) == 0:
+        empty_state(message="No skill data available. Run the skill extraction pipeline.")
+        return
 
+    ranked = top_skills.copy()
+    ranked.insert(0, "Rank", range(1, len(ranked) + 1))
+    ranked["Coverage %"] = (ranked["count"] / len(df) * 100).round(1)
+    ranked.columns = ["Rank", "Skill", "Demand (# postings)", "Coverage %"]
+    st.dataframe(ranked, use_container_width=True, hide_index=True)
+    st.plotly_chart(
+        horizontal_bar(top_skills, "count", "skill", height=560),
+        use_container_width=True,
+    )
+    s0 = top_skills.iloc[0]
+    insight_card(
+        f"**{s0['skill']}** appears in {s0['count'] / len(df) * 100:.0f}% of all "
+        f"postings — the most universal skill in this dataset."
+    )
+
+    # ---------------- Section 2 — Skill categories ----------------
     st.divider()
-
-    # ---------------- Skill category distribution ----------------
-    col_l, col_r = st.columns(2)
-
+    section_header("Skill Category Demand", kicker="Section 2 · Where demand concentrates")
+    categories = analytics.get_skill_category_counts(df)
+    col_l, col_r = st.columns([2, 3])
     with col_l:
-        st.markdown("### 📂 Skill Category Distribution")
-        category_counts = {}
-        if "extracted_skills" in df.columns:
-            for skills in df["extracted_skills"].tolist():
-                if isinstance(skills, (list, set)):
-                    for s in skills:
-                        cat = SKILL_CATEGORIES.get(s, "Other")
-                        category_counts[cat] = category_counts.get(cat, 0) + 1
-        if category_counts:
-            items = sorted(category_counts.items(), key=lambda x: -x[1])
+        if len(categories):
             st.plotly_chart(
-                donut_chart([i[0] for i in items], [i[1] for i in items], height=380),
+                donut_chart(categories["category"].tolist(),
+                            categories["count"].tolist(), height=340),
                 use_container_width=True,
             )
         else:
-            st.info("No skill category data")
-
+            empty_state(message="No skill category data available.")
     with col_r:
-        st.markdown("### 🎯 Skills by Job Role")
-        role_options = unique_options(df, "standardized_job_title")
-        role = st.selectbox("Select Job Role", role_options) if role_options else None
-        if not role_options:
-            st.info("No job role data available")
-        elif role:
-            role_df = df[df["standardized_job_title"] == role]
-            role_skills = analytics.get_top_skills(role_df, n=12)
-            if len(role_skills) > 0:
-                st.plotly_chart(
-                    horizontal_bar(role_skills, "count", "skill", height=380),
-                    use_container_width=True,
-                )
-            else:
-                st.info(f"No skill data for {role}")
-
-    st.divider()
-
-    # ---------------- Skills by location ----------------
-    st.markdown("### 📍 Skills by Location")
-    col1, col2 = st.columns([1, 3])
-    with col1:
-        loc = st.selectbox("Select Location", ["All"] + unique_options(df, "city"))
-    with col2:
-        st.caption("Most in-demand skills in the selected location")
-
-    if loc and loc != "All" and "city" in df.columns:
-        loc_df = df[df["city"] == loc]
-    else:
-        loc_df = df
-
-    loc_skills = analytics.get_top_skills(loc_df, n=15)
-    if len(loc_skills) > 0:
-        st.plotly_chart(
-            horizontal_bar(loc_skills, "count", "skill", height=420),
-            use_container_width=True,
+        if len(categories):
+            cat_df = categories.head(8)
+            st.plotly_chart(
+                horizontal_bar(cat_df, "count", "category", height=340),
+                use_container_width=True,
+            )
+        else:
+            empty_state(message="No skill category data available.")
+    if len(categories):
+        c0 = categories.iloc[0]
+        insight_card(
+            f"**{c0['category']}** skills dominate demand with {int(c0['count']):,} "
+            f"mentions across the dataset."
         )
-    else:
-        st.info("No skill data for selected location")
 
+    # ---------------- Section 3 — Skills by role ----------------
     st.divider()
-
-    # ---------------- Skill combinations ----------------
-    st.markdown("### 🔗 Most Requested Skill Combinations")
-    combos = analytics.get_skill_combinations(df, n=10)
-    if len(combos) > 0:
-        combos["combination"] = combos["skill_1"] + " + " + combos["skill_2"]
-        st.dataframe(
-            combos[["combination", "count"]].rename(
-                columns={"combination": "Skill Combination", "count": "# Jobs"}
-            ),
-            use_container_width=True,
-            hide_index=True,
-        )
-    else:
-        st.info("No skill combination data available")
-
-    st.divider()
-
-    # ---------------- Role comparison ----------------
-    st.markdown("### ⚖️ Compare Two Job Roles")
-
+    section_header("Skills by Job Role", kicker="Section 3 · Role-specific demand")
     roles = unique_options(df, "standardized_job_title")
-    if len(roles) < 2:
-        st.info("At least two different job roles are required for comparison.")
+    if not roles:
+        empty_state(message="No job role data available.")
+        return
+    default_role = "Data Analyst" if "Data Analyst" in roles else roles[0]
+    role = st.selectbox("Select a job role", roles, index=roles.index(default_role), key="si_role")
+    role_df = df[df["standardized_job_title"] == role]
+    role_skills = analytics.get_top_skills(role_df, n=12)
+    if len(role_skills):
+        st.plotly_chart(
+            horizontal_bar(role_skills, "count", "skill", height=400),
+            use_container_width=True,
+        )
+        rs = role_skills.iloc[0]
+        insight_card(
+            f"For **{role}** roles, **{rs['skill']}** leads demand — requested in "
+            f"{int(rs['count']):,} of {len(role_df):,} postings "
+            f"({rs['count'] / len(role_df) * 100:.0f}%)."
+        )
+    else:
+        empty_state(message=f"No skill data for {role}.")
+
+    # ---------------- Section 4 — Role comparison ----------------
+    st.divider()
+    section_header("Compare Two Roles", kicker="Section 4 · Side-by-side skills")
+    col_a, col_b = st.columns(2)
+    with col_a:
+        role_a = st.selectbox("Role A", roles, index=0, key="si_role_a")
+    with col_b:
+        role_b = st.selectbox(
+            "Role B", roles, index=min(1, len(roles) - 1), key="si_role_b"
+        )
+
+    if role_a == role_b:
+        st.info("Select two different roles to compare.")
         return
 
-    col1, col2 = st.columns(2)
-    with col1:
-        role1 = st.selectbox("Role A", roles, index=0)
-    with col2:
-        role2 = st.selectbox("Role B", roles, index=1)
+    comparison = analytics.get_role_comparison(df, role_a, role_b)
+    if "error" in comparison:
+        st.warning(comparison["error"])
+        return
 
-    if role1 and role2 and role1 != role2:
-        comparison = analytics.get_role_comparison(df, role1, role2)
-        if "error" not in comparison:
-            col3, col4, col5 = st.columns(3)
-            with col3:
-                st.markdown("#### ✅ Common Skills")
-                if comparison["common_skills"]:
-                    st.markdown(
-                        "".join(
-                            f'<span class="tag">{s}</span>' for s in comparison["common_skills"][:15]
-                        ),
-                        unsafe_allow_html=True,
-                    )
-                else:
-                    st.caption("None")
-            with col4:
-                st.markdown(f"#### 🔵 Unique to {role1}")
-                if comparison["unique_to_role1"]:
-                    st.markdown(
-                        "".join(
-                            f'<span class="tag">{s}</span>' for s in comparison["unique_to_role1"][:10]
-                        ),
-                        unsafe_allow_html=True,
-                    )
-                else:
-                    st.caption("None")
-            with col5:
-                st.markdown(f"#### 🟠 Unique to {role2}")
-                if comparison["unique_to_role2"]:
-                    st.markdown(
-                        "".join(
-                            f'<span class="tag">{s}</span>' for s in comparison["unique_to_role2"][:10]
-                        ),
-                        unsafe_allow_html=True,
-                    )
-                else:
-                    st.caption("None")
+    st.markdown(f"##### {role_a} vs {role_b}")
+    st.caption(
+        f"{comparison['role1_count']:,} postings for {role_a} · "
+        f"{comparison['role2_count']:,} postings for {role_b}"
+    )
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        st.markdown("**✅ Common Skills**")
+        skill_badges(comparison["common_skills"][:12], kind="have")
+        if not comparison["common_skills"]:
+            st.caption("None")
+    with c2:
+        st.markdown(f"**🔵 Unique to {role_a}**")
+        skill_badges(comparison["unique_to_role1"][:10])
+        if not comparison["unique_to_role1"]:
+            st.caption("None")
+    with c3:
+        st.markdown(f"**🟠 Unique to {role_b}**")
+        skill_badges(comparison["unique_to_role2"][:10])
+        if not comparison["unique_to_role2"]:
+            st.caption("None")
 
-            st.divider()
+    st.markdown("##### Skill Demand Comparison")
+    col_d1, col_d2 = st.columns(2)
+    with col_d1:
+        st.markdown(f"**Top skills — {role_a}**")
+        df_a = pd.DataFrame(comparison["top_skills_role1"], columns=["skill", "count"])
+        if len(df_a):
+            st.plotly_chart(horizontal_bar(df_a, "count", "skill", height=360), use_container_width=True)
+    with col_d2:
+        st.markdown(f"**Top skills — {role_b}**")
+        df_b = pd.DataFrame(comparison["top_skills_role2"], columns=["skill", "count"])
+        if len(df_b):
+            st.plotly_chart(horizontal_bar(df_b, "count", "skill", height=360), use_container_width=True)
 
-            col_left, col_right = st.columns(2)
-            with col_left:
-                st.markdown(f"#### 💪 Most Important Skills — {role1}")
-                for skill, count in comparison["top_skills_role1"][:10]:
-                    st.markdown(f"- **{skill}** ({count:,} mentions)")
-            with col_right:
-                st.markdown(f"#### 💪 Most Important Skills — {role2}")
-                for skill, count in comparison["top_skills_role2"][:10]:
-                    st.markdown(f"- **{skill}** ({count:,} mentions)")
-        else:
-            st.warning(comparison.get("error", "Cannot compare roles"))
-    else:
-        st.info("Select two different roles to compare.")
+    cta_block(
+        "So — how do YOUR skills compare?",
+        "Match your profile against this demand and get your Career Readiness Score.",
+        "Analyze My Career",
+        "⭐ AI Career Advisor",
+        key="si_cta_advisor",
+    )

@@ -1,89 +1,183 @@
 """
-Home page for JobPulse AI.
+Home page — the entry point of the JobPulse AI story (Phase 4).
+
+Guided flow: understand the market -> understand the required skills ->
+discover your own career position (call-to-action into the AI Career
+Advisor, the hero feature of the platform).
 """
 from __future__ import annotations
 
-import streamlit as st
-import pandas as pd
+import sys
+from pathlib import Path
 
-from dashboard.components.metrics import render_kpi_card, fmt_lpa, fmt_number
-from dashboard.components.charts import horizontal_bar, line_chart, donut_chart
-from dashboard.components.styling import synthetic_data_notice
+import streamlit as st
+
+ROOT = Path(__file__).resolve().parent.parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from dashboard.components.charts import donut_chart, horizontal_bar, line_chart
+from dashboard.components.metrics import fmt_lpa, fmt_number
+from dashboard.components.premium import (
+    cta_block,
+    empty_state,
+    insight_card,
+    kpi_row,
+    page_header,
+    section_header,
+)
 from src import analytics
 
 
 def render(df: pd.DataFrame) -> None:
-    """Render the home page."""
-    st.markdown('<div class="page-title">JobPulse AI</div>', unsafe_allow_html=True)
+    """Render the home page with the guided product story."""
     st.markdown(
-        '<div class="page-subtitle">'
-        '"Understand the Job Market. Discover Your Skill Gap. Build Your Career."'
-        '</div>',
+        """
+        <div class="hero">
+            <div class="hero-eyebrow">Job Market &amp; Skills Intelligence Platform</div>
+            <div class="hero-title">JobPulse AI</div>
+            <div class="hero-tagline">"Understand the Job Market. Discover Your Skill Gap. Build Your Career."</div>
+        </div>
+        """,
         unsafe_allow_html=True,
     )
 
-    synthetic_data_notice()
+    if df is None or len(df) == 0:
+        empty_state(
+            "No Data Available",
+            "No job market data is loaded. Run the data pipeline to generate insights.",
+        )
+        return
 
-    # ---------------- KPI Cards ----------------
+    if st.session_state.get("data_source") != "database":
+        st.caption(
+            "🧪 Showing a clearly-labelled **synthetic sample dataset** so every "
+            "feature is explorable. All figures on this page are computed from "
+            "the loaded data — nothing is hard-coded."
+        )
+
+    # ---------------- Premium KPI cards ----------------
     summary = analytics.get_job_market_summary(df)
     top_skills = analytics.get_top_skills(df, n=1)
+    top_skill_name = str(top_skills.iloc[0]["skill"]) if len(top_skills) else "N/A"
+    top_skill_share = (
+        f"{top_skills.iloc[0]['count'] / len(df) * 100:.0f}% of postings"
+        if len(top_skills)
+        else ""
+    )
+    avg_salary = summary["avg_salary"]
 
-    st.markdown("### 📊 Market Overview")
-    col1, col2, col3, col4, col5 = st.columns(5)
+    kpi_row(
+        [
+            {"title": "Total Job Postings", "value": fmt_number(summary["total_jobs"]),
+             "sub": "in the loaded dataset", "accent": True},
+            {"title": "Total Companies", "value": fmt_number(summary["total_companies"]),
+             "sub": "actively hiring"},
+            {"title": "Total Locations", "value": fmt_number(summary["total_locations"]),
+             "sub": "cities covered"},
+            {"title": "Average Salary", "value": fmt_lpa(avg_salary) if avg_salary > 0 else "N/A",
+             "sub": "across listed salaries"},
+            {"title": "Most In-Demand Skill", "value": top_skill_name, "sub": top_skill_share},
+        ]
+    )
 
-    with col1:
-        render_kpi_card("Total Job Postings", fmt_number(summary["total_jobs"]))
-    with col2:
-        render_kpi_card("Total Companies", fmt_number(summary["total_companies"]))
-    with col3:
-        render_kpi_card("Total Locations", fmt_number(summary["total_locations"]))
-    with col4:
-        render_kpi_card("Average Salary", fmt_lpa(summary["avg_salary"]))
-    with col5:
-        top_skill_name = top_skills.iloc[0]["skill"] if len(top_skills) else "N/A"
-        render_kpi_card("Most In-Demand Skill", top_skill_name)
-
+    # ---------------- Step 1 — Understand the market ----------------
     st.divider()
+    section_header("Understand the Market", kicker="Step 1 · Where are the opportunities?")
 
-    # ---------------- Job market overview ----------------
-    col_l, col_r = st.columns([3, 2])
-
-    with col_l:
-        st.markdown("### 🎯 Top Job Roles")
-        top_roles = analytics.get_top_roles(df, n=10)
-        if len(top_roles) > 0:
-            fig = horizontal_bar(top_roles, "count", "job_role", height=420)
-            st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.info("No role data available")
-
-    with col_r:
-        st.markdown("### 📍 Top Locations")
-        top_locations = analytics.get_top_locations(df, n=8)
-        if len(top_locations) > 0:
-            fig = donut_chart(
-                top_locations["location"].tolist(),
-                top_locations["count"].tolist(),
-                height=420,
-            )
-            st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.info("No location data available")
-
-    st.divider()
-
-    # ---------------- Recent job trends ----------------
-    st.markdown("### 📈 Recent Job Posting Trends")
     trend = analytics.get_job_trend_analysis(df)
     if len(trend) > 0:
-        fig = line_chart(trend, "year_month", "count", height=400)
-        st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.info("No trend data available")
+        st.plotly_chart(
+            line_chart(trend, "year_month", "count", height=300), use_container_width=True
+        )
 
-    # ---------------- Footer ----------------
+    top_locations = analytics.get_top_locations(df, n=8)
+    top_companies = analytics.get_top_companies(df, n=10)
+    col_l, col_r = st.columns(2)
+    with col_l:
+        st.markdown("**Top Hiring Cities**")
+        if len(top_locations) > 0:
+            st.plotly_chart(
+                donut_chart(top_locations["location"].tolist(),
+                            top_locations["count"].tolist(), height=320),
+                use_container_width=True,
+            )
+        else:
+            empty_state(message="No location data available.")
+    with col_r:
+        st.markdown("**Top Hiring Companies**")
+        if len(top_companies) > 0:
+            st.plotly_chart(
+                horizontal_bar(top_companies, "count", "company", height=320),
+                use_container_width=True,
+            )
+        else:
+            empty_state(message="No company data available.")
+
+    if len(top_locations) > 0:
+        loc = top_locations.iloc[0]
+        insight_card(
+            f"**{loc['location']}** currently has the highest concentration of job "
+            f"postings — {int(loc['count']):,} openings "
+            f"({loc['count'] / len(df) * 100:.0f}% of the dataset)."
+        )
+
+    # ---------------- Step 2 — Understand the skills ----------------
     st.divider()
+    section_header("Understand the Required Skills",
+                   kicker="Step 2 · What skills does the market want?")
+
+    top12 = analytics.get_top_skills(df, n=12)
+    categories = analytics.get_skill_category_counts(df)
+    col_l, col_r = st.columns([3, 2])
+    with col_l:
+        st.markdown("**Top 12 In-Demand Skills**")
+        if len(top12) > 0:
+            st.plotly_chart(
+                horizontal_bar(top12, "count", "skill", height=360),
+                use_container_width=True,
+            )
+        else:
+            empty_state(message="No skill data available.")
+    with col_r:
+        st.markdown("**Demand by Skill Category**")
+        if len(categories) > 0:
+            st.plotly_chart(
+                donut_chart(categories["category"].tolist(),
+                            categories["count"].tolist(), height=360),
+                use_container_width=True,
+            )
+        else:
+            empty_state(message="No skill category data available.")
+
+    if len(top12) > 0:
+        s = top12.iloc[0]
+        insight_card(
+            f"**{s['skill']}** is the single most demanded skill — requested in "
+            f"{int(s['count']):,} postings ({s['count'] / len(df) * 100:.0f}% of the market)."
+        )
+
+    # ---------------- Step 3 — Your career position (hero CTA) ----------------
+    st.divider()
+    cta_block(
+        "How Ready Are You for Your Target Role?",
+        "Compare your skills against real market demand, get your Career Readiness "
+        "Score, and receive a personalised learning roadmap built from the data.",
+        "Analyze My Career Profile",
+        "⭐ AI Career Advisor",
+        key="home_cta_advisor",
+    )
+
+    with st.expander("🧭 The JobPulse journey — how this platform tells the story"):
+        st.markdown(
+            "1. **Market Insights** — where the opportunities are\n"
+            "2. **Skills Intelligence** — which skills the market demands\n"
+            "3. **Salary Explorer** — what the pay potential looks like\n"
+            "4. **Company Intelligence** — who is hiring and what they require\n"
+            "5. **⭐ AI Career Advisor** — how ready *you* are, and what to learn next\n"
+            "6. **Job Recommendations** — which roles fit your profile today"
+        )
     st.caption(
-        "JobPulse AI — a data analytics portfolio project. "
-        "Data shown is synthetic unless a real dataset has been loaded."
+        "JobPulse AI — data analytics portfolio project. "
+        "Every value is computed from the loaded dataset."
     )

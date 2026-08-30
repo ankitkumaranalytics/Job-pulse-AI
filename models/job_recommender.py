@@ -227,6 +227,8 @@ class JobRecommender:
                 "skill_match": round(skill_match, 3),
                 "missing_skills": ", ".join(str(s) for s in missing_skills[:5]),
                 "salary_average": row.get("salary_average", np.nan),
+                "posting_date": row.get("posting_date", ""),
+                "experience_category": row.get("experience_category", ""),
             })
 
         results_df = pd.DataFrame(results)

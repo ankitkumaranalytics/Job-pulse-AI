@@ -15,13 +15,13 @@ from streamlit.testing.v1 import AppTest
 APP_PATH = Path(__file__).resolve().parent.parent / "dashboard" / "app.py"
 
 PAGES = [
-    "🏠 Home",
-    "📈 Market Insights",
-    "🧠 Skills Intelligence",
-    "💰 Salary Explorer",
-    "🏢 Company Insights",
-    "🎯 Career Advisor",
-    "📋 Job Recommendations",
+    "Overview",
+    "Market Insights",
+    "Skills Intelligence",
+    "Salary Explorer",
+    "Company Intelligence",
+    "⭐ AI Career Advisor",
+    "Job Recommendations",
 ]
 
 
@@ -62,7 +62,7 @@ def test_every_page_renders_without_exception(app_test: AppTest, page: str) -> N
 
 def test_market_insights_filters_produce_charts(app_test: AppTest) -> None:
     """After selecting a role filter the page must still render content."""
-    app_test.sidebar.radio[0].set_value("📈 Market Insights")
+    app_test.sidebar.radio[0].set_value("Market Insights")
     app_test.run()
     assert not app_test.exception
     # Every selectbox filter defaults to 'All' and must exist
@@ -71,7 +71,7 @@ def test_market_insights_filters_produce_charts(app_test: AppTest) -> None:
 
 def test_company_page_selects_first_company(app_test: AppTest) -> None:
     """Company selector defaults to a real company; profile must render."""
-    app_test.sidebar.radio[0].set_value("🏢 Company Insights")
+    app_test.sidebar.radio[0].set_value("Company Intelligence")
     app_test.run()
     assert not app_test.exception
     assert app_test.selectbox, "Company selectbox missing"
@@ -79,6 +79,6 @@ def test_company_page_selects_first_company(app_test: AppTest) -> None:
 
 def test_career_page_empty_skills_is_safe(app_test: AppTest) -> None:
     """With no skills selected the page shows guidance, not a crash."""
-    app_test.sidebar.radio[0].set_value("🎯 Career Advisor")
+    app_test.sidebar.radio[0].set_value("⭐ AI Career Advisor")
     app_test.run()
     assert not app_test.exception
