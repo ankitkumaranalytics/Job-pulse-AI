@@ -168,6 +168,25 @@ def render(df: pd.DataFrame) -> None:
         key="home_cta_advisor",
     )
 
+    # ---------------- Step 4 — Resume & search CTAs (2026 upgrade) ----------------
+    cta_block(
+        "See How Your Resume Scores Against the Market",
+        "Upload your resume for a transparent ATS-style audit, missing-keyword "
+        "analysis, and a match score against any job description.",
+        "Open Resume Intelligence",
+        "Resume Intelligence",
+        key="home_cta_resume",
+    )
+
+    cta_block(
+        "Search Jobs in Plain English",
+        "Type what you want — 'fresher data analyst internship in Chennai with "
+        "Python and SQL' — and the semantic search engine finds matching postings.",
+        "Open Job Search",
+        "Job Search",
+        key="home_cta_search",
+    )
+
     with st.expander("🧭 The JobPulse journey — how this platform tells the story"):
         st.markdown(
             "1. **Market Insights** — where the opportunities are\n"

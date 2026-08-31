@@ -16,12 +16,16 @@ APP_PATH = Path(__file__).resolve().parent.parent / "dashboard" / "app.py"
 
 PAGES = [
     "Overview",
+    "Job Search",
+    "Job Recommendations",
+    "⭐ AI Career Advisor",
+    "Resume Intelligence",
+    "Interview Coach",
+    "Application Tracker",
     "Market Insights",
     "Skills Intelligence",
     "Salary Explorer",
     "Company Intelligence",
-    "⭐ AI Career Advisor",
-    "Job Recommendations",
 ]
 
 

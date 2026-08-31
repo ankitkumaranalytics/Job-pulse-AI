@@ -321,6 +321,34 @@ def apply_custom_styles() -> None:
         .empty-state .es-title {
             font-weight: 700; color: var(--ink); font-size: 1.05rem; margin-bottom: 0.3rem;
         }
+        /* ---------- Career Intelligence platform (2026 upgrade) ---------- */
+        .pill {
+            display: inline-block; font-size: 0.72rem; font-weight: 700;
+            letter-spacing: 0.05em; padding: 0.18rem 0.6rem;
+            border-radius: 999px; margin-right: 0.3rem;
+        }
+        .why-line {
+            font-size: 0.84rem; color: #475569; background: #f8fafc;
+            border-left: 3px solid var(--primary); border-radius: 4px;
+            padding: 0.35rem 0.6rem; margin: 0.45rem 0 0.15rem;
+        }
+        .alert-card {
+            background: var(--card); border: 1px solid var(--line);
+            border-left: 4px solid #f59e0b; border-radius: var(--radius);
+            box-shadow: var(--shadow); padding: 0.75rem 1rem; margin-bottom: 0.55rem;
+        }
+        .alert-card .alert-title { font-weight: 700; color: var(--ink); margin-bottom: 0.2rem; }
+        .alert-card p { margin: 0; color: #475569; font-size: 0.92rem; }
+        .progress-row {
+            display: flex; align-items: center; gap: 0.5rem; margin: 0.45rem 0;
+        }
+        .progress-row .progress-track {
+            flex: 1; height: 8px; background: #e2e8f0; border-radius: 999px; overflow: hidden;
+        }
+        .progress-row .progress-fill { display: block; height: 100%; border-radius: 999px; }
+        .progress-row .progress-count {
+            font-weight: 700; color: var(--ink); min-width: 1.4rem; text-align: right;
+        }
         </style>
         """,
         unsafe_allow_html=True,

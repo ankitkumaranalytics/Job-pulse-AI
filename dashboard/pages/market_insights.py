@@ -153,6 +153,22 @@ def render(df: pd.DataFrame) -> None:
         if bits:
             insight_card("; ".join(bits) + ".", label="What This Means")
 
+    # ---------------- Actionable insights (FEATURE 7 upgrade) ----------------
+    if len(filtered) >= MIN_FOR_INSIGHT:
+        st.divider()
+        section_header(
+            "Actionable Insights",
+            kicker="What these numbers mean for your job hunt",
+        )
+        try:
+            from dashboard.services.market_service import actionable_insights
+
+            focus_role = None if role == "All" else role
+            for insight in actionable_insights(filtered, focus_role):
+                insight_card(insight)
+        except Exception:  # noqa: BLE001 - insights are best-effort
+            pass
+
     cta_block(
         "Now — which skills do these opportunities require?",
         "See the exact skills the market demands, ranked by real posting data.",

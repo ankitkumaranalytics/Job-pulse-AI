@@ -116,6 +116,24 @@ def main() -> None:
     if page == "home":
         from dashboard.pages.home import render as render_home
         render_home(df)
+    elif page == "job_search":
+        from dashboard.pages.job_search import render as render_job_search
+        render_job_search(df)
+    elif page == "job_recommendations":
+        from dashboard.pages.job_recommendations import render as render_recos
+        render_recos(df)
+    elif page == "career_advisor":
+        from dashboard.pages.career_advisor import render as render_career
+        render_career(df)
+    elif page == "resume_intelligence":
+        from dashboard.pages.resume_intelligence import render as render_resume
+        render_resume(df)
+    elif page == "interview_coach":
+        from dashboard.pages.interview_coach import render as render_interview
+        render_interview(df)
+    elif page == "application_tracker":
+        from dashboard.pages.application_tracker import render as render_tracker
+        render_tracker(df)
     elif page == "market_insights":
         from dashboard.pages.market_insights import render as render_market
         render_market(df)
@@ -128,12 +146,6 @@ def main() -> None:
     elif page == "company_insights":
         from dashboard.pages.company_insights import render as render_company
         render_company(df)
-    elif page == "career_advisor":
-        from dashboard.pages.career_advisor import render as render_career
-        render_career(df)
-    elif page == "job_recommendations":
-        from dashboard.pages.job_recommendations import render as render_recos
-        render_recos(df)
 
 
 if __name__ == "__main__":

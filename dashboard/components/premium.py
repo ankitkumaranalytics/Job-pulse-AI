@@ -21,22 +21,30 @@ import streamlit as st
 # ---------------------------------------------------------------------------
 NAV_LABELS: list[str] = [
     "Overview",
+    "Job Search",
+    "Job Recommendations",
+    "⭐ AI Career Advisor",
+    "Resume Intelligence",
+    "Interview Coach",
+    "Application Tracker",
     "Market Insights",
     "Skills Intelligence",
     "Salary Explorer",
     "Company Intelligence",
-    "⭐ AI Career Advisor",
-    "Job Recommendations",
 ]
 
 PAGE_KEYS: dict[str, str] = {
     "Overview": "home",
+    "Job Search": "job_search",
+    "Job Recommendations": "job_recommendations",
+    "⭐ AI Career Advisor": "career_advisor",
+    "Resume Intelligence": "resume_intelligence",
+    "Interview Coach": "interview_coach",
+    "Application Tracker": "application_tracker",
     "Market Insights": "market_insights",
     "Skills Intelligence": "skills_intelligence",
     "Salary Explorer": "salary_explorer",
     "Company Intelligence": "company_insights",
-    "⭐ AI Career Advisor": "career_advisor",
-    "Job Recommendations": "job_recommendations",
 }
 
 
@@ -216,6 +224,7 @@ def job_card(
     missing: list[str],
     salary: str | None = None,
     experience: str | None = None,
+    why: str | None = None,
 ) -> None:
     """Premium job recommendation card (Phase 13)."""
     salary_html = f" &nbsp;·&nbsp; 💰 {salary}" if salary else ""
@@ -227,10 +236,14 @@ def job_card(
         "".join(f'<span class="skill-badge badge-missing">✗ {s}</span>' for s in missing[:4])
         or '<span class="skill-badge badge-have">✓ All required skills matched</span>'
     )
+    why_html = (
+        f'<div class="why-line">🤖 {why}</div>' if why else ""
+    )
     st.markdown(
         f'<div class="job-card"><span class="jc-match">{match_pct}% match</span>'
         f'<div class="jc-title">{rank}. {title}</div>'
         f'<div class="jc-meta">🏢 {company} &nbsp;·&nbsp; 📍 {location}{exp_html}{salary_html}</div>'
+        f'{why_html}'
         f'<div class="jc-label">Matched skills</div>{matched_html}'
         f'<div class="jc-label">Missing skills</div>{missing_html}</div>',
         unsafe_allow_html=True,

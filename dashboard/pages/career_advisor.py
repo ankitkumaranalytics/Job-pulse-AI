@@ -195,6 +195,31 @@ def render(df: pd.DataFrame) -> None:
         if not missing["critical"] and not missing["important"] and not missing["optional"]:
             st.success("You have all the important skills for this role!")
 
+        # ---- Priority skill gap (FEATURE 5 upgrade) ----
+        try:
+            from dashboard.services.skill_gap_service import analyze_skill_gap
+
+            gaps = analyze_skill_gap(df, user_skills, target_role)
+            section_header(
+                "Priority Skills to Learn",
+                kicker="Weighted by posting frequency, importance and foundational value",
+            )
+            for bucket, icon in (("High", "🔴"), ("Medium", "🟠"), ("Low", "🟢")):
+                items = gaps["bucketed"][bucket]
+                if items:
+                    st.markdown(f"**{icon} {bucket} priority**")
+                    st.markdown(
+                        "".join(
+                            f'<span class="skill-badge badge-missing">✗ {p["skill"]} '
+                            f'({p["frequency_pct"]:.0f}% of postings)</span>'
+                            for p in items[:6]
+                        ),
+                        unsafe_allow_html=True,
+                    )
+            st.caption(gaps["scoring_basis"])
+        except Exception:  # noqa: BLE001 - gap analysis is best-effort
+            pass
+
         st.divider()
         section_header("Your Recommended Learning Roadmap", "Data-driven priority order")
         recommendations = result["recommendations"]
@@ -210,6 +235,32 @@ def render(df: pd.DataFrame) -> None:
                 roadmap_card(i + 1, level, skill, reason)
         else:
             st.info("No additional skills recommended — you're well prepared!")
+
+        # ---- Roadmap progress tracking (FEATURE 6 upgrade) ----
+        if recommendations:
+            done_key = "ca_completed_skills"
+            done_set = set(st.session_state.get(done_key, []))
+            st.markdown("#### 🗺 Your learning progress")
+            progress_cols = st.columns(3)
+            for i, skill in enumerate(recommendations[:9]):
+                with progress_cols[i % 3]:
+                    st.checkbox(
+                        skill,
+                        value=skill in done_set,
+                        key=f"ca_done_{skill}",
+                    )
+            done_now = {
+                s for s in recommendations[:9]
+                if st.session_state.get(f"ca_done_{s}")
+            }
+            st.session_state[done_key] = sorted(done_now)
+            pct = 100.0 * len(done_now) / max(1, len(recommendations[:9]))
+            st.progress(min(1.0, max(0.0, pct / 100.0)))
+            st.caption(
+                f"**{pct:.0f}% of your priority skills learned** "
+                f"({len(done_now)}/{len(recommendations[:9])}). "
+                "Tick skills as you master them — progress is tracked for this session."
+            )
 
         st.divider()
         section_header("Career Insights", "Personalized observations based on your profile")

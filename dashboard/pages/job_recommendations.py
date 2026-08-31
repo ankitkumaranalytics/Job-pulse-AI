@@ -24,7 +24,7 @@ from dashboard.components.premium import (
     job_card,
     page_header,
 )
-from models.job_recommender import JobRecommender
+from dashboard.services.recommendation_service import HybridRecommender
 from src.skill_extractor import get_all_skills
 from src.utils import unique_options
 
@@ -32,12 +32,10 @@ EXP_YEARS = {"Fresher": 0.0, "Entry Level": 1.5, "Mid Level": 3.5, "Senior Level
 SORT_OPTIONS = ["Highest Match", "Newest Posting", "Location (A-Z)"]
 
 
-@st.cache_resource(show_spinner="Fitting TF-IDF recommendation model…")
-def get_recommender(df: pd.DataFrame) -> JobRecommender:
-    """Fit the TF-IDF recommender once and cache it across reruns (Phase 19)."""
-    recommender = JobRecommender(df)
-    recommender.fit()
-    return recommender
+@st.cache_resource(show_spinner="Fitting hybrid recommendation model…")
+def get_recommender(df: pd.DataFrame) -> HybridRecommender:
+    """Fit the hybrid recommender once and cache it across reruns."""
+    return HybridRecommender(df)
 
 
 def render(df: pd.DataFrame) -> None:
@@ -123,15 +121,19 @@ def render(df: pd.DataFrame) -> None:
     st.markdown("#### 🎯 Your Best Matches")
     with st.spinner("Finding your best job matches…"):
         try:
-            recommender = get_recommender(df)
-            results = recommender.recommend(
-                user_skills=user_skills,
+            from dashboard.models.user_profile import UserProfile
+
+            profile = UserProfile(
+                skills=user_skills,
+                target_role=target_role if target_role != "Any Role" else "",
                 preferred_location=(
                     preferred_location if preferred_location != "Any Location" else ""
                 ),
-                experience_level=exp_years,
-                target_role=target_role if target_role != "Any Role" else "",
+                experience_level=experience,
+                experience_years=exp_years,
             )
+            recommender = get_recommender(df)
+            results = recommender.recommend(profile, top_n=10)
         except ValueError as e:
             st.error(f"Recommendation engine error: {e}")
             return
@@ -174,21 +176,46 @@ def render(df: pd.DataFrame) -> None:
     for rank, (_, row) in enumerate(results.iterrows(), start=1):
         match_pct = int(round(row["match_score"] * 100))
 
-        # Parse matched/missing skills
-        matched = [s.strip() for s in str(row.get("skills", "")).split(",") if s.strip()]
+        # Parse matched/missing skills (hybrid engine provides both split)
+        matched = [
+            s.strip()
+            for s in str(row.get("matched_skills", row.get("skills", ""))).split(",")
+            if s.strip()
+        ]
         missing = [s.strip() for s in str(row.get("missing_skills", "")).split(",") if s.strip()]
 
         salary_str = fmt_lpa(row["salary_average"]) if pd.notna(row.get("salary_average")) else None
         exp_str = str(row["experience_category"]) if row.get("experience_category") else None
 
-        job_card(
-            rank=rank,
-            title=str(row["job_title"]),
-            company=str(row["company"]),
-            location=str(row["location"]),
-            match_pct=match_pct,
-            matched=matched,
-            missing=missing,
-            salary=salary_str,
-            experience=exp_str,
-        )
+        col_card, col_save = st.columns([4, 1])
+        with col_card:
+            job_card(
+                rank=rank,
+                title=str(row["job_title"]),
+                company=str(row["company"]),
+                location=str(row["location"]),
+                match_pct=match_pct,
+                matched=matched,
+                missing=missing,
+                salary=salary_str,
+                experience=exp_str,
+                why=row.get("why_recommended"),
+            )
+        with col_save:
+            st.write("")
+            if st.button("🔖 Save", key=f"jr_save_{rank}", use_container_width=True,
+                         help="Save this job to your Application Tracker"):
+                try:
+                    from dashboard.services import tracker_service
+
+                    tracker_service.add_application(
+                        company=str(row["company"]),
+                        role=str(row["job_title"]),
+                        location=str(row["location"]),
+                        status="Saved",
+                        source="job_recommendations",
+                        match_score=float(match_pct),
+                    )
+                    st.success("Saved!")
+                except Exception as exc:  # noqa: BLE001
+                    st.error(f"Could not save: {exc}")
