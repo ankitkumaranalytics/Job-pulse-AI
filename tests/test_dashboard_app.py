@@ -82,3 +82,87 @@ def test_career_page_empty_skills_is_safe(app_test: AppTest) -> None:
     app_test.sidebar.radio[0].set_value("⭐ AI Career Advisor")
     app_test.run()
     assert not app_test.exception
+
+
+# ---------------------------------------------------------------------------
+# Navigation regression tests (StreamlitAPIException fix).
+#
+# CTA buttons must navigate ONLY on click, via the `requested_navigation`
+# queue that app.py consumes BEFORE the nav radio (key="nav_selection") is
+# instantiated. Writing a widget-backed key after the widget exists raises
+# StreamlitAPIException; these tests prove the queue flow works end-to-end
+# and that it cannot loop (the request is popped exactly once).
+#
+# Each test boots its OWN AppTest session (like a real user opening a new
+# browser tab) so widget-state replay from previous pages cannot interfere.
+# ---------------------------------------------------------------------------
+
+
+def _fresh_app() -> AppTest:
+    """Boot a fresh, isolated AppTest session of the real app."""
+    at = AppTest.from_file(str(APP_PATH), default_timeout=300)
+    at.run()
+    return at
+
+
+def test_fresh_session_starts_on_overview_with_no_pending_navigation() -> None:
+    """Rendering the Home page must not trigger any automatic navigation."""
+    at = _fresh_app()
+    assert not at.exception, f"Home page crashed: {at.exception}"
+    assert at.sidebar.radio[0].value == "Overview"
+    assert _session_get(at, "requested_navigation") is None
+
+
+def test_home_cta_navigates_to_career_advisor() -> None:
+    """Clicking the Home hero CTA switches the nav radio to Career Advisor."""
+    at = _fresh_app()
+    assert not at.exception
+
+    # Simulate the user clicking the hero CTA button on the Home page.
+    # A single run() is enough: AppTest follows go_to()'s st.rerun()
+    # internally (queue -> consume before radio -> render target page).
+    at.button(key="home_cta_advisor").click()
+    at.run()
+
+    assert not at.exception, f"CTA navigation crashed: {at.exception}"
+    assert at.sidebar.radio[0].value == "⭐ AI Career Advisor"
+    # The request is consumed exactly once -> no infinite rerun loop.
+    assert _session_get(at, "requested_navigation") is None
+
+
+@pytest.mark.parametrize(
+    ("host_page", "button_key", "pre_click", "expected_page"),
+    [
+        ("Market Insights", "mi_cta_skills", None, "Skills Intelligence"),
+        ("Salary Explorer", "se_cta_company", None, "Company Intelligence"),
+        ("Skills Intelligence", "si_cta_advisor", None, "⭐ AI Career Advisor"),
+        # The Career Advisor CTA only exists after running the analysis.
+        ("⭐ AI Career Advisor", "ca_to_jobs", "ca_analyze", "Job Recommendations"),
+    ],
+)
+def test_every_cta_routes_to_its_target_page(
+    host_page: str, button_key: str, pre_click: str | None, expected_page: str
+) -> None:
+    """Every CTA button in the app navigates to its intended page on click."""
+    at = _fresh_app()
+    assert not at.exception
+
+    at.sidebar.radio[0].set_value(host_page)
+    at.run()
+    assert not at.exception, f"Host page '{host_page}' crashed: {at.exception}"
+
+    if pre_click is not None:
+        at.button(key=pre_click).click()
+        at.run()
+        assert not at.exception
+
+    # A single run() per interaction: AppTest follows go_to()'s st.rerun()
+    # internally (queue -> consume before radio -> render target page).
+    at.button(key=button_key).click()
+    at.run()
+
+    assert not at.exception, f"CTA '{button_key}' crashed: {at.exception}"
+    assert at.sidebar.radio[0].value == expected_page, (
+        f"CTA '{button_key}' did not navigate to '{expected_page}'"
+    )
+    assert _session_get(at, "requested_navigation") is None

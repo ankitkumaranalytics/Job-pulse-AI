@@ -83,8 +83,24 @@ def main() -> None:
     # -----------------------------------------------------------------
     # Navigation: canonical journey order defined in components.premium
     # (Phase 3/14). The Career Advisor is the hero feature and is
-    # visually starred; CTA buttons on other pages navigate by setting
-    # st.session_state["nav_selection"].
+    # visually starred. CTA buttons on other pages navigate via
+    # premium.go_to(), which queues st.session_state["requested_navigation"].
+    #
+    # The queued request MUST be consumed HERE, before the radio widget
+    # (key="nav_selection") is instantiated: Streamlit forbids writing a
+    # widget-backed session key after that widget has been created in the
+    # current run (StreamlitAPIException). Popping the key also guarantees
+    # the request is applied exactly once, so no rerun loop can occur.
+    if "requested_navigation" in st.session_state:
+        requested_nav = st.session_state.pop("requested_navigation")
+        if requested_nav in NAV_LABELS:
+            st.session_state["nav_selection"] = requested_nav
+
+    # Initialize navigation safely (default = first page, "Overview",
+    # which maps to the Home page via PAGE_KEYS).
+    if "nav_selection" not in st.session_state:
+        st.session_state["nav_selection"] = NAV_LABELS[0]
+
     with st.sidebar:
         st.divider()
         selection = st.radio(

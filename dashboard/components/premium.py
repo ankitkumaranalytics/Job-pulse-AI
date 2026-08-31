@@ -41,8 +41,16 @@ PAGE_KEYS: dict[str, str] = {
 
 
 def go_to(nav_label: str) -> None:
-    """Switch the sidebar navigation radio to ``nav_label`` and rerun."""
-    st.session_state["nav_selection"] = nav_label
+    """Queue ``nav_label`` as the next page and trigger a rerun.
+
+    Never writes ``st.session_state["nav_selection"]`` directly: that key
+    backs the sidebar radio widget, and Streamlit raises StreamlitAPIException
+    if a widget-backed key is written after the widget has been instantiated
+    in the current run. Instead the request is stored under the non-widget
+    key ``requested_navigation``; app.py consumes it at the start of the next
+    run, BEFORE the radio is created.
+    """
+    st.session_state["requested_navigation"] = nav_label
     st.rerun()
 
 

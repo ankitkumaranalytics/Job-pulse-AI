@@ -124,9 +124,16 @@ def render(df: pd.DataFrame) -> None:
             "✨ Analyze My Career", type="primary",
             use_container_width=True, key="ca_analyze",
         )
+        # A Streamlit button is only True during the single run right after
+        # its click. Persisting the flag keeps the report (and its
+        # "View Recommended Jobs" CTA) alive across reruns — otherwise any
+        # later interaction, including clicking that CTA, would re-run the
+        # script with analyze_clicked=False and silently drop the click.
+        if analyze_clicked:
+            st.session_state["ca_report_visible"] = True
 
     with col_right:
-        if not analyze_clicked:
+        if not st.session_state.get("ca_report_visible"):
             st.markdown(
                 '<div class="cta-block"><div class="cta-title">'
                 "Your Career Intelligence Report</div>"
@@ -148,7 +155,7 @@ def render(df: pd.DataFrame) -> None:
         score = result["score"]
         classification = readiness_classification(score)
         band = BAND_CLASS.get(classification, "b-mid")
-        readiness_gauge(score, classification)
+        readiness_gauge(score)
         st.markdown(
             f'<div class="readiness-badge {band}">{classification} &middot; {score:.0f}%</div>',
             unsafe_allow_html=True,
